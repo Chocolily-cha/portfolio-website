@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { SearchFilters, Work } from '../types'
-import { categories, searchWorks, getAllTags } from '../data/mockData'
+import { categories, searchWorks } from '../data/mockData'
 import WorkCard from '../components/WorkCard'
 import SearchFiltersComponent from '../components/SearchFilters'
 import ShareModal from '../components/ShareModal'

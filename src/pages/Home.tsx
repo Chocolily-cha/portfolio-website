@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Sparkles, Box, Cube, Palette, Camera, MoreHorizontal, ArrowRight, Play } from 'lucide-react';
+import { Sparkles, Box, Grid3x3, Palette, Camera, MoreHorizontal, ArrowRight, Play } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { categories, works } from '../data/mockData';
 import { Work } from '../types';
@@ -8,7 +8,7 @@ import WorkCard from '../components/WorkCard';
 const iconMap: Record<string, typeof Sparkles> = {
  Sparkles,
  Box,
- Cube,
+ Grid3x3,
  Palette,
  Camera,
  MoreHorizontal,

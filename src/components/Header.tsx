@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Menu, X, Search, User } from 'lucide-react'
+import { Menu, Search, User } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
 import { categories } from '../data/mockData'
 

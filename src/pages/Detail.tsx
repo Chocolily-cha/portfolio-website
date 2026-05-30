@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { ArrowLeft, Eye, Heart, Share2, Calendar, Tag, Clock } from 'lucide-react'
 import { getWorkById, works, categories } from '../data/mockData'
-import { Work } from '../types'
 import ShareModal from '../components/ShareModal'
 
 export default function Detail() {

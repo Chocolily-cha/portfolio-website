@@ -18,7 +18,7 @@ export const categories: Category[] = [
   {
     id: 'model',
     name: '模型',
-    icon: 'Cube',
+    icon: 'Grid3x3',
     description: '3D模型作品',
     order: 3,
   },
