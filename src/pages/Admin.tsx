@@ -1,7 +1,25 @@
-import { useState } from 'react';
-import { Lock, Unlock, Plus, Trash2, Edit3, Save, X, Eye, EyeOff, List, Layout, Image, Video, Sparkles, Box, Grid3x3, Palette, Camera, MoreHorizontal, Layers, Star, Wand2, Code, Palette as Paint, Brush, Zap, Globe, Music, Gamepad2, Award, Crown, Feather, Heart, Sun, Moon, Coffee, BookOpen, PenTool } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { Lock, Unlock, Plus, Trash2, Edit3, Save, X, Eye, EyeOff, List, Layout, Image, Video, Sparkles, Box, Grid3x3, Palette, Camera, MoreHorizontal, Layers, Star, Wand2, Code, Palette as Paint, Brush, Zap, Globe, Music, Gamepad2, Award, Crown, Feather, Heart, Sun, Moon, Coffee, BookOpen, PenTool, Upload, RefreshCw, Check, AlertCircle } from 'lucide-react';
 import { categories, works } from '../data/mockData';
 import { Category, Work, CategoryType } from '../types';
+
+// 文件上传状态类型
+interface UploadState {
+  isUploading: boolean;
+  progress: number;
+  status: 'idle' | 'uploading' | 'success' | 'error';
+  message: string;
+  fileName: string;
+}
+
+// 文件类型配置
+const ACCEPTED_FILE_TYPES = {
+  image: '.jpg,.jpeg,.png,.gif,.webp,.svg,.bmp',
+  video: '.mp4,.webm,.ogg,.mov,.avi',
+  audio: '.mp3,.wav,.ogg,.aac,.flac'
+};
+
+const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 
 export default function Admin() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -30,6 +48,25 @@ export default function Admin() {
     technicalDetails: [],
   });
   const [tagInput, setTagInput] = useState('');
+
+  // 文件上传相关状态
+  const [uploadState, setUploadState] = useState<UploadState>({
+    isUploading: false,
+    progress: 0,
+    status: 'idle',
+    message: '',
+    fileName: ''
+  });
+  const [replaceUploadState, setReplaceUploadState] = useState<UploadState>({
+    isUploading: false,
+    progress: 0,
+    status: 'idle',
+    message: '',
+    fileName: ''
+  });
+  const [showReplaceConfirm, setShowReplaceConfirm] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const replaceFileInputRef = useRef<HTMLInputElement>(null);
 
   // 扩展图标库
   const icons = [
@@ -61,6 +98,162 @@ export default function Admin() {
     { name: 'BookOpen', component: BookOpen },
     { name: 'PenTool', component: PenTool },
   ];
+
+  // 获取文件类型
+  const getFileType = (file: File): 'image' | 'video' | 'audio' => {
+    if (file.type.startsWith('image/')) return 'image';
+    if (file.type.startsWith('video/')) return 'video';
+    if (file.type.startsWith('audio/')) return 'audio';
+    return 'image'; // 默认为图片
+  };
+
+  // 文件上传处理函数
+  const handleFileUpload = async (file: File, isReplace: boolean = false): Promise<string | null> => {
+    const setState = isReplace ? setReplaceUploadState : setUploadState;
+    
+    // 验证文件大小
+    if (file.size > MAX_FILE_SIZE) {
+      setState({
+        isUploading: false,
+        progress: 0,
+        status: 'error',
+        message: `文件大小超过限制（最大 ${MAX_FILE_SIZE / 1024 / 1024}MB）`,
+        fileName: file.name
+      });
+      return null;
+    }
+
+    // 开始上传
+    setState({
+      isUploading: true,
+      progress: 0,
+      status: 'uploading',
+      message: '正在上传...',
+      fileName: file.name
+    });
+
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      
+      // 模拟上传进度
+      let progress = 0;
+      const progressInterval = setInterval(() => {
+        progress += Math.random() * 15;
+        if (progress > 90) progress = 90;
+        setState(prev => ({
+          ...prev,
+          progress: Math.round(progress)
+        }));
+      }, 100);
+
+      reader.onload = () => {
+        clearInterval(progressInterval);
+        const dataUrl = reader.result as string;
+        
+        setState({
+          isUploading: false,
+          progress: 100,
+          status: 'success',
+          message: '上传成功！',
+          fileName: file.name
+        });
+
+        // 3秒后重置状态
+        setTimeout(() => {
+          setState({
+            isUploading: false,
+            progress: 0,
+            status: 'idle',
+            message: '',
+            fileName: ''
+          });
+        }, 3000);
+
+        resolve(dataUrl);
+      };
+
+      reader.onerror = () => {
+        clearInterval(progressInterval);
+        setState({
+          isUploading: false,
+          progress: 0,
+          status: 'error',
+          message: '上传失败，请重试',
+          fileName: file.name
+        });
+        resolve(null);
+      };
+
+      reader.readAsDataURL(file);
+    });
+  };
+
+  // 处理文件选择
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const dataUrl = await handleFileUpload(file);
+    if (dataUrl) {
+      const fileType = getFileType(file);
+      setNewWork({
+        ...newWork,
+        media: [
+          ...(newWork.media || []),
+          {
+            id: `media-${Date.now()}`,
+            type: fileType,
+            url: dataUrl,
+          },
+        ],
+      });
+    }
+    // 重置 input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  // 处理替换文件选择
+  const handleReplaceFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !editingWork) return;
+
+    const dataUrl = await handleFileUpload(file, true);
+    if (dataUrl) {
+      const fileType = getFileType(file);
+      setEditingWork({
+        ...editingWork,
+        media: [
+          {
+            id: `media-${Date.now()}`,
+            type: fileType,
+            url: dataUrl,
+          },
+        ],
+      });
+    }
+    // 重置 input
+    if (replaceFileInputRef.current) {
+      replaceFileInputRef.current.value = '';
+    }
+    setShowReplaceConfirm(false);
+  };
+
+  // 触发文件选择
+  const triggerFileSelect = () => {
+    fileInputRef.current?.click();
+  };
+
+  // 触发替换文件选择
+  const triggerReplaceFileSelect = () => {
+    setShowReplaceConfirm(true);
+  };
+
+  // 确认替换
+  const confirmReplace = () => {
+    replaceFileInputRef.current?.click();
+  };
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -531,55 +724,100 @@ export default function Admin() {
               </div>
 
               <div>
-                <label className="block text-gray-400 text-sm mb-2">媒体链接（图片或视频URL）</label>
+                <label className="block text-gray-400 text-sm mb-2">作品上传</label>
                 <input
-                  type="text"
-                  placeholder="输入媒体URL，按回车添加"
-                  className="w-full bg-dark-200 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-primary-500 transition-colors"
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      const input = e.currentTarget;
-                      const url = input.value.trim();
-                      if (url) {
-                        setNewWork({
-                          ...newWork,
-                          media: [
-                            ...(newWork.media || []),
-                            {
-                              id: `media-${Date.now()}`,
-                              type: url.match(/\.(mp4|webm|ogg)$/i) ? 'video' : 'image',
-                              url: url,
-                            },
-                          ],
-                        });
-                        input.value = '';
-                      }
-                    }
-                  }}
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileSelect}
+                  accept={`${ACCEPTED_FILE_TYPES.image},${ACCEPTED_FILE_TYPES.video},${ACCEPTED_FILE_TYPES.audio}`}
+                  className="hidden"
                 />
-                {newWork.media && newWork.media.length > 0 && (
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {newWork.media.map((media) => (
-                      <div key={media.id} className="flex items-center gap-2 bg-dark-200 px-3 py-1 rounded-lg">
-                        {media.type === 'video' ? (
-                          <Video className="w-4 h-4 text-primary-400" />
-                        ) : (
-                          <Image className="w-4 h-4 text-accent-400" />
-                        )}
-                        <span className="text-white text-sm truncate max-w-[150px]">{media.url}</span>
-                        <button
-                          onClick={() =>
-                            setNewWork({
-                              ...newWork,
-                              media: newWork.media?.filter((m) => m.id !== media.id),
-                            })
-                          }
-                        >
-                          <X className="w-4 h-4 text-gray-400 hover:text-white" />
-                        </button>
+                <div
+                  onClick={triggerFileSelect}
+                  className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all ${
+                    uploadState.status === 'error' 
+                      ? 'border-red-500/50 bg-red-500/10' 
+                      : uploadState.status === 'success'
+                      ? 'border-green-500/50 bg-green-500/10'
+                      : 'border-gray-700 hover:border-primary-500 hover:bg-dark-300'
+                  }`}
+                >
+                  {uploadState.isUploading ? (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-center gap-3">
+                        <RefreshCw className="w-8 h-8 text-primary-400 animate-spin" />
+                        <span className="text-white">正在上传...</span>
                       </div>
-                    ))}
+                      <div className="w-full bg-dark-200 rounded-full h-2">
+                        <div 
+                          className="bg-gradient-primary h-2 rounded-full transition-all duration-300"
+                          style={{ width: `${uploadState.progress}%` }}
+                        />
+                      </div>
+                      <span className="text-gray-400 text-sm">{uploadState.progress}%</span>
+                    </div>
+                  ) : uploadState.status === 'success' ? (
+                    <div className="space-y-2">
+                      <Check className="w-8 h-8 text-green-400 mx-auto" />
+                      <p className="text-green-400">{uploadState.message}</p>
+                      <p className="text-gray-400 text-sm">{uploadState.fileName}</p>
+                    </div>
+                  ) : uploadState.status === 'error' ? (
+                    <div className="space-y-2">
+                      <AlertCircle className="w-8 h-8 text-red-400 mx-auto" />
+                      <p className="text-red-400">{uploadState.message}</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <Upload className="w-8 h-8 text-gray-400 mx-auto" />
+                      <p className="text-gray-400">点击或拖拽文件到此处上传</p>
+                      <p className="text-gray-500 text-xs">支持图片、视频、音频文件（最大 50MB）</p>
+                      <p className="text-gray-500 text-xs">格式：JPG, PNG, GIF, WebP, SVG, MP4, WebM, MP3, WAV 等</p>
+                    </div>
+                  )}
+                </div>
+                
+                {/* 已上传的媒体列表 */}
+                {newWork.media && newWork.media.length > 0 && (
+                  <div className="mt-4 space-y-2">
+                    <p className="text-gray-400 text-sm">已上传的文件：</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      {newWork.media.map((media) => (
+                        <div key={media.id} className="relative group bg-dark-200 rounded-lg overflow-hidden">
+                          {media.type === 'video' ? (
+                            <div className="aspect-video flex items-center justify-center bg-dark-300">
+                              <Video className="w-8 h-8 text-primary-400" />
+                            </div>
+                          ) : media.type === 'audio' ? (
+                            <div className="aspect-video flex items-center justify-center bg-dark-300">
+                              <Music className="w-8 h-8 text-accent-400" />
+                            </div>
+                          ) : (
+                            <img 
+                              src={media.url} 
+                              alt="预览" 
+                              className="w-full aspect-video object-cover"
+                            />
+                          )}
+                          <div className="p-2 flex items-center justify-between">
+                            <span className="text-white text-xs truncate flex-1">
+                              {media.type === 'video' ? '视频文件' : media.type === 'audio' ? '音频文件' : '图片文件'}
+                            </span>
+                            <button
+                              onClick={() =>
+                                setNewWork({
+                                  ...newWork,
+                                  media: newWork.media?.filter((m) => m.id !== media.id),
+                                })
+                              }
+                              className="p-1 text-gray-400 hover:text-red-400 transition-colors"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
@@ -733,6 +971,122 @@ export default function Admin() {
                   ))}
                 </select>
               </div>
+
+              {/* 替换作品功能 */}
+              <div>
+                <label className="block text-gray-400 text-sm mb-2">替换作品</label>
+                <input
+                  type="file"
+                  ref={replaceFileInputRef}
+                  onChange={handleReplaceFileSelect}
+                  accept={`${ACCEPTED_FILE_TYPES.image},${ACCEPTED_FILE_TYPES.video},${ACCEPTED_FILE_TYPES.audio}`}
+                  className="hidden"
+                />
+                
+                {/* 当前作品预览 */}
+                {editingWork.media && editingWork.media.length > 0 && (
+                  <div className="mb-4 p-3 bg-dark-200 rounded-lg">
+                    <p className="text-gray-400 text-xs mb-2">当前作品：</p>
+                    <div className="flex items-center gap-3">
+                      {editingWork.media[0].type === 'video' ? (
+                        <div className="w-20 h-14 bg-dark-300 rounded flex items-center justify-center">
+                          <Video className="w-6 h-6 text-primary-400" />
+                        </div>
+                      ) : editingWork.media[0].type === 'audio' ? (
+                        <div className="w-20 h-14 bg-dark-300 rounded flex items-center justify-center">
+                          <Music className="w-6 h-6 text-accent-400" />
+                        </div>
+                      ) : (
+                        <img 
+                          src={editingWork.media[0].url} 
+                          alt="当前作品" 
+                          className="w-20 h-14 object-cover rounded"
+                        />
+                      )}
+                      <div className="flex-1">
+                        <p className="text-white text-sm">
+                          {editingWork.media[0].type === 'video' ? '视频文件' : 
+                           editingWork.media[0].type === 'audio' ? '音频文件' : '图片文件'}
+                        </p>
+                        <p className="text-gray-500 text-xs">点击下方按钮替换</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {/* 替换按钮和上传状态 */}
+                <div
+                  onClick={triggerReplaceFileSelect}
+                  className={`border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-all ${
+                    replaceUploadState.status === 'error' 
+                      ? 'border-red-500/50 bg-red-500/10' 
+                      : replaceUploadState.status === 'success'
+                      ? 'border-green-500/50 bg-green-500/10'
+                      : 'border-gray-700 hover:border-primary-500 hover:bg-dark-300'
+                  }`}
+                >
+                  {replaceUploadState.isUploading ? (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-center gap-2">
+                        <RefreshCw className="w-5 h-5 text-primary-400 animate-spin" />
+                        <span className="text-white text-sm">正在替换...</span>
+                      </div>
+                      <div className="w-full bg-dark-200 rounded-full h-1.5">
+                        <div 
+                          className="bg-gradient-primary h-1.5 rounded-full transition-all duration-300"
+                          style={{ width: `${replaceUploadState.progress}%` }}
+                        />
+                      </div>
+                      <span className="text-gray-400 text-xs">{replaceUploadState.progress}%</span>
+                    </div>
+                  ) : replaceUploadState.status === 'success' ? (
+                    <div className="flex items-center justify-center gap-2">
+                      <Check className="w-5 h-5 text-green-400" />
+                      <span className="text-green-400 text-sm">{replaceUploadState.message}</span>
+                    </div>
+                  ) : replaceUploadState.status === 'error' ? (
+                    <div className="flex items-center justify-center gap-2">
+                      <AlertCircle className="w-5 h-5 text-red-400" />
+                      <span className="text-red-400 text-sm">{replaceUploadState.message}</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center gap-2">
+                      <RefreshCw className="w-5 h-5 text-gray-400" />
+                      <span className="text-gray-400 text-sm">点击上传新文件替换当前作品</span>
+                    </div>
+                  )}
+                </div>
+                <p className="text-gray-500 text-xs mt-2">替换后将保留作品的标题、描述和标签等信息</p>
+              </div>
+
+              {/* 替换确认对话框 */}
+              {showReplaceConfirm && (
+                <div className="fixed inset-0 bg-black/70 z-[70] flex items-center justify-center p-4">
+                  <div className="bg-dark-300 rounded-xl p-6 max-w-sm w-full">
+                    <div className="flex items-center gap-3 mb-4">
+                      <AlertCircle className="w-6 h-6 text-yellow-400" />
+                      <h4 className="text-white font-medium">确认替换作品？</h4>
+                    </div>
+                    <p className="text-gray-400 text-sm mb-6">
+                      替换后原作品文件将被删除，但作品标题、描述和标签等信息将保留。此操作无法撤销。
+                    </p>
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => setShowReplaceConfirm(false)}
+                        className="flex-1 py-2 bg-dark-200 text-white rounded-lg hover:bg-dark-100 transition-colors"
+                      >
+                        取消
+                      </button>
+                      <button
+                        onClick={confirmReplace}
+                        className="flex-1 py-2 bg-yellow-500/20 text-yellow-400 rounded-lg hover:bg-yellow-500/30 transition-colors"
+                      >
+                        确认替换
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {error && <p className="text-red-500 text-sm">{error}</p>}
 
