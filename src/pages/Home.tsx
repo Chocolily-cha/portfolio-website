@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Sparkles, Box, Grid3x3, Palette, Camera, MoreHorizontal, ArrowRight, Play } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { categories, works } from '../data/mockData';
-import { Work } from '../types';
+import { getCategories, getWorks } from '../data/storage';
+import { Work, Category } from '../types';
 import ShareModal from '../components/ShareModal';
 import WorkCard from '../components/WorkCard';
 const iconMap: Record<string, typeof Sparkles> = {
@@ -16,6 +16,15 @@ const iconMap: Record<string, typeof Sparkles> = {
 export default function Home() {
  const [shareModalOpen, setShareModalOpen] = useState(false);
  const [selectedWork, setSelectedWork] = useState<Work | null>(null);
+ const [categories, setCategories] = useState<Category[]>([]);
+ const [works, setWorks] = useState<Work[]>([]);
+
+ // 从 localStorage 加载数据
+ useEffect(() => {
+   setCategories(getCategories());
+   setWorks(getWorks());
+ }, []);
+
  const featuredWorks = works.slice(0, 6);
  const handleShare = (work: Work) => {
  setSelectedWork(work);

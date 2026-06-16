@@ -1,6 +1,6 @@
 import { X } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
-import { categories } from '../data/mockData'
+import { getCategories } from '../data/storage'
 
 interface SidebarProps {
   isOpen: boolean
@@ -9,6 +9,7 @@ interface SidebarProps {
 
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const location = useLocation()
+  const categories = getCategories()
 
   const getActiveCategory = () => {
     const match = location.pathname.match(/\/gallery\/(\w+)/)

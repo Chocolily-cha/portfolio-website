@@ -1,6 +1,7 @@
-import { useState, useRef } from 'react';
-import { Lock, Unlock, Plus, Trash2, Edit3, Save, X, Eye, EyeOff, List, Layout, Image, Video, Sparkles, Box, Grid3x3, Palette, Camera, MoreHorizontal, Layers, Star, Wand2, Code, Palette as Paint, Brush, Zap, Globe, Music, Gamepad2, Award, Crown, Feather, Heart, Sun, Moon, Coffee, BookOpen, PenTool, Upload, RefreshCw, Check, AlertCircle } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { Lock, Unlock, Plus, Trash2, Edit3, Save, X, Eye, EyeOff, List, Layout, Image, Video, Sparkles, Box, Grid3x3, Palette, Camera, MoreHorizontal, Layers, Star, Wand2, Code, Palette as Paint, Brush, Zap, Globe, Music, Gamepad2, Award, Crown, Feather, Heart, Sun, Moon, Coffee, BookOpen, PenTool, Upload, RefreshCw, Check, AlertCircle, RotateCcw } from 'lucide-react';
 import { categories, works } from '../data/mockData';
+import { getCategories, getWorks, saveCategories, saveWorks, resetToDefault } from '../data/storage';
 import { Category, Work, CategoryType } from '../types';
 
 // 文件上传状态类型
@@ -36,8 +37,19 @@ export default function Admin() {
     description: '',
     icon: 'Sparkles',
   });
-  const [categoriesList, setCategoriesList] = useState(categories);
-  const [worksList, setWorksList] = useState(works);
+  
+  // 从 localStorage 读取数据
+  const [categoriesList, setCategoriesList] = useState<Category[]>(getCategories);
+  const [worksList, setWorksList] = useState<Work[]>(getWorks);
+
+  // 当数据变化时自动保存到 localStorage
+  useEffect(() => {
+    saveCategories(categoriesList);
+  }, [categoriesList]);
+
+  useEffect(() => {
+    saveWorks(worksList);
+  }, [worksList]);
 
   const [newWork, setNewWork] = useState<Partial<Work>>({
     title: '',
@@ -426,13 +438,29 @@ export default function Admin() {
             <h1 className="text-3xl font-bold text-white">管理后台</h1>
             <p className="text-gray-400">管理作品分类和作品内容</p>
           </div>
-          <button
-            onClick={() => setIsLoggedIn(false)}
-            className="flex items-center gap-2 px-4 py-2 bg-dark-100 hover:bg-dark-200 rounded-xl text-gray-300 transition-colors"
-          >
-            <Lock className="w-4 h-4" />
-            退出登录
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => {
+                if (confirm('确定要重置所有数据吗？这将清除所有自定义数据并恢复默认数据。')) {
+                  resetToDefault();
+                  setCategoriesList(getCategories());
+                  setWorksList(getWorks());
+                  alert('数据已重置！');
+                }
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-yellow-500/20 hover:bg-yellow-500/30 rounded-xl text-yellow-400 transition-colors"
+            >
+              <RotateCcw className="w-4 h-4" />
+              重置数据
+            </button>
+            <button
+              onClick={() => setIsLoggedIn(false)}
+              className="flex items-center gap-2 px-4 py-2 bg-dark-100 hover:bg-dark-200 rounded-xl text-gray-300 transition-colors"
+            >
+              <Lock className="w-4 h-4" />
+              退出登录
+            </button>
+          </div>
         </div>
 
         <div className="bg-dark-100 rounded-2xl overflow-hidden">

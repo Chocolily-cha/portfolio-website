@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { ArrowLeft, Eye, Heart, Share2, Calendar, Tag, Clock, ChevronLeft, ChevronRight, Maximize2, X } from 'lucide-react'
-import { getWorkById, works, categories } from '../data/mockData'
+import { getWorkById, getWorks, getCategories } from '../data/storage'
 import ShareModal from '../components/ShareModal'
 
 export default function Detail() {
@@ -15,6 +15,8 @@ export default function Detail() {
   const videoRef = useRef<HTMLVideoElement>(null)
 
   const work = getWorkById(id || '')
+  const categories = getCategories()
+  const works = getWorks()
   const category = categories.find((c) => c.id === work?.category)
   const relatedWorks = works.filter((w) => w.category === work?.category && w.id !== id).slice(0, 3)
 

@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import { SearchFilters, Work } from '../types'
-import { categories, searchWorks } from '../data/mockData'
+import { getCategories, searchWorks } from '../data/storage'
 import WorkCard from '../components/WorkCard'
 import SearchFiltersComponent from '../components/SearchFilters'
 import ShareModal from '../components/ShareModal'
@@ -16,6 +16,16 @@ export default function Gallery() {
   })
   const [shareModalOpen, setShareModalOpen] = useState(false)
   const [selectedWork, setSelectedWork] = useState<Work | null>(null)
+  const [categories, setCategories] = useState(getCategories())
+
+  // 监听 storage 变化
+  useEffect(() => {
+    const handleStorageChange = () => {
+      setCategories(getCategories())
+    }
+    window.addEventListener('storage', handleStorageChange)
+    return () => window.removeEventListener('storage', handleStorageChange)
+  }, [])
 
   const currentCategory = categories.find((c) => c.id === category)
 

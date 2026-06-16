@@ -1,7 +1,7 @@
 import { Search, SlidersHorizontal, X } from 'lucide-react'
 import { useState } from 'react'
 import { CategoryType, SortType, SearchFilters as SearchFiltersType } from '../types'
-import { categories, getAllTags } from '../data/mockData'
+import { getCategories, getAllTags } from '../data/storage'
 
 interface SearchFiltersProps {
   filters: SearchFiltersType
@@ -10,6 +10,7 @@ interface SearchFiltersProps {
 
 export default function SearchFilters({ filters, onFiltersChange }: SearchFiltersProps) {
   const [showFilters, setShowFilters] = useState(false)
+  const categories = getCategories()
   const tags = getAllTags()
 
   const handleKeywordChange = (value: string) => {

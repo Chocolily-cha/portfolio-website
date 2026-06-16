@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Menu, Search, User } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
-import { categories } from '../data/mockData'
+import { getCategories } from '../data/storage'
 
 interface HeaderProps {
   onToggleSidebar: () => void
@@ -11,6 +11,7 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
   const [isScrolled, setIsScrolled] = useState(false)
   const [searchFocused, setSearchFocused] = useState(false)
   const location = useLocation()
+  const categories = getCategories()
 
   useEffect(() => {
     const handleScroll = () => {
