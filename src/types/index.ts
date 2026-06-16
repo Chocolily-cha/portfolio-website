@@ -14,7 +14,7 @@ export interface Work {
 
 export interface Media {
   id: string
-  type: 'image' | 'video'
+  type: 'image' | 'video' | 'audio'
   url: string
   thumbnail?: string
   title?: string
