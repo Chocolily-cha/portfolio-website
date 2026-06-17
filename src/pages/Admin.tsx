@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
-import { Lock, Unlock, Plus, Trash2, Edit3, Save, X, Eye, EyeOff, List, Layout, Image, Video, Sparkles, Box, Grid3x3, Palette, Camera, MoreHorizontal, Layers, Star, Wand2, Code, Palette as Paint, Brush, Zap, Globe, Music, Gamepad2, Award, Crown, Feather, Heart, Sun, Moon, Coffee, BookOpen, PenTool, Upload, RefreshCw, Check, AlertCircle, RotateCcw, Search, Filter, ArrowUpDown, X as CloseIcon } from 'lucide-react';
-import { getCategories, getWorks, saveCategories, saveWorks, resetToDefault, getAllTags } from '../data/storage';
-import { Category, Work, CategoryType, TechnicalDetail } from '../types';
+import { Lock, Unlock, Plus, Trash2, Edit3, Save, X, Eye, EyeOff, List, Layout, Image, Video, Sparkles, Box, Grid3x3, Palette, Camera, MoreHorizontal, Layers, Star, Wand2, Code, Palette as Paint, Brush, Zap, Globe, Music, Gamepad2, Award, Crown, Feather, Heart, Sun, Moon, Coffee, BookOpen, PenTool, Upload, RefreshCw, Check, AlertCircle, RotateCcw, Search, Filter, ArrowUpDown, X as CloseIcon, Tag as TagIcon, History, TrendingUp, Clock, AlertTriangle, CheckCircle } from 'lucide-react';
+import { getCategories, getWorks, saveCategories, saveWorks, resetToDefault, getAllTags, validateTag, addOrUpdateTagMetadata, batchAddTagsMetadata, getTagMetadata, getTagSyncLogs, getTagStatistics, clearTagSyncLogs } from '../data/storage';
+import { Category, Work, CategoryType, TechnicalDetail, TagMetadata, TagSyncLog, TagValidationResult } from '../types';
 
 // 文件上传状态类型
 interface UploadState {
@@ -40,7 +40,7 @@ export default function Admin() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
-  const [activeTab, setActiveTab] = useState<'categories' | 'works'>('categories');
+  const [activeTab, setActiveTab] = useState<'categories' | 'works' | 'tags'>('categories');
   const [showAddCategory, setShowAddCategory] = useState(false);
   const [showAddWork, setShowAddWork] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
@@ -481,8 +481,9 @@ export default function Admin() {
       return;
     }
 
+    const workId = `work-${Date.now()}`;
     const work: Work = {
-      id: `work-${Date.now()}`,
+      id: workId,
       title: newWork.title || '',
       description: newWork.description || '',
       category: newWork.category as CategoryType || 'other',
@@ -496,6 +497,15 @@ export default function Admin() {
     };
 
     setWorksList([...worksList, work]);
+    
+    // 批量添加所有标签到元数据系统
+    if (newWork.tags && newWork.tags.length > 0) {
+      const result = batchAddTagsMetadata(newWork.tags, newWork.category as CategoryType || 'other', workId);
+      if (result.failed > 0) {
+        console.warn('部分标签添加失败:', result.errors);
+      }
+    }
+
     setNewWork({
       title: '',
       description: '',
@@ -517,6 +527,9 @@ export default function Admin() {
         ...newWork,
         tags: [...(newWork.tags || []), tag],
       });
+      
+      // 更新标签使用计数
+      addOrUpdateTagMetadata(tag, newWork.category || 'other', newWork.id);
     }
     setTagInput('');
     setShowTagDropdown(false);
@@ -614,14 +627,57 @@ export default function Admin() {
     }
   };
 
+  // 标签验证状态
+  const [tagValidationResult, setTagValidationResult] = useState<TagValidationResult | null>(null);
+  const [tagFeedback, setTagFeedback] = useState<{ type: 'success' | 'warning' | 'error'; message: string } | null>(null);
+
   const handleAddTag = () => {
-    if (tagInput.trim() && !newWork.tags?.includes(tagInput.trim())) {
-      setNewWork({
-        ...newWork,
-        tags: [...(newWork.tags || []), tagInput.trim()],
-      });
-      setTagInput('');
+    if (!tagInput.trim()) {
+      setTagFeedback({ type: 'error', message: '请输入标签名称' });
+      return;
     }
+
+    // 验证标签
+    const existingTags = getAllTags();
+    const validation = validateTag(tagInput.trim(), newWork.category || 'other', existingTags);
+    setTagValidationResult(validation);
+
+    if (!validation.isValid) {
+      setTagFeedback({ type: 'error', message: validation.errors[0] });
+      return;
+    }
+
+    // 检查是否已存在于当前标签列表
+    if (newWork.tags?.includes(tagInput.trim())) {
+      setTagFeedback({ type: 'warning', message: '该标签已添加到当前作品' });
+      setTagInput('');
+      return;
+    }
+
+    // 添加到当前作品
+    setNewWork({
+      ...newWork,
+      tags: [...(newWork.tags || []), tagInput.trim()],
+    });
+
+    // 更新标签元数据
+    const result = addOrUpdateTagMetadata(tagInput.trim(), newWork.category || 'other', newWork.id);
+
+    if (result.success) {
+      if (validation.warnings.length > 0) {
+        setTagFeedback({ type: 'warning', message: validation.warnings[0] });
+      } else {
+        setTagFeedback({ type: 'success', message: result.message });
+      }
+    } else {
+      setTagFeedback({ type: 'error', message: result.message });
+    }
+
+    setTagInput('');
+    setTagValidationResult(null);
+
+    // 3秒后清除反馈消息
+    setTimeout(() => setTagFeedback(null), 3000);
   };
 
   const handleRemoveTag = (tag: string) => {
@@ -736,6 +792,15 @@ export default function Admin() {
               <List className="w-5 h-5" />
               作品管理
             </button>
+            <button
+              onClick={() => setActiveTab('tags')}
+              className={`flex-1 flex items-center justify-center gap-2 py-4 font-medium transition-colors ${
+                activeTab === 'tags' ? 'bg-dark-200 text-white' : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              <TagIcon className="w-5 h-5" />
+              标签管理
+            </button>
           </div>
 
           <div className="p-6">
@@ -777,7 +842,7 @@ export default function Admin() {
                   ))}
                 </div>
               </>
-            ) : (
+            ) : activeTab === 'works' ? (
               <>
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                   <div className="flex items-center gap-4">
@@ -957,6 +1022,145 @@ export default function Admin() {
                       ))}
                     </tbody>
                   </table>
+                </div>
+              </>
+            ) : (
+              // 标签管理标签页
+              <>
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-xl font-semibold text-white">标签管理</h2>
+                </div>
+
+                {/* 标签统计卡片 */}
+                {(() => {
+                  const stats = getTagStatistics();
+                  return (
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+                      <div className="bg-gradient-to-br from-blue-500/20 to-blue-600/10 rounded-xl p-4 border border-blue-500/20">
+                        <div className="flex items-center gap-3 mb-2">
+                          <TagIcon className="w-6 h-6 text-blue-400" />
+                          <span className="text-gray-400 text-sm">标签总数</span>
+                        </div>
+                        <p className="text-3xl font-bold text-white">{stats.totalTags}</p>
+                      </div>
+                      
+                      <div className="bg-gradient-to-br from-green-500/20 to-green-600/10 rounded-xl p-4 border border-green-500/20">
+                        <div className="flex items-center gap-3 mb-2">
+                          <TrendingUp className="w-6 h-6 text-green-400" />
+                          <span className="text-gray-400 text-sm">总使用次数</span>
+                        </div>
+                        <p className="text-3xl font-bold text-white">{stats.totalUsage}</p>
+                      </div>
+                      
+                      <div className="bg-gradient-to-br from-purple-500/20 to-purple-600/10 rounded-xl p-4 border border-purple-500/20">
+                        <div className="flex items-center gap-3 mb-2">
+                          <Clock className="w-6 h-6 text-purple-400" />
+                          <span className="text-gray-400 text-sm">最近添加</span>
+                        </div>
+                        <p className="text-3xl font-bold text-white">{stats.recentlyAdded.length}</p>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* 热门标签 */}
+                <div className="mb-6">
+                  <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                    <TrendingUp className="w-5 h-5 text-primary-400" />
+                    热门标签 Top 10
+                  </h3>
+                  <div className="bg-dark-200 rounded-xl p-4">
+                    {(() => {
+                      const stats = getTagStatistics();
+                      return stats.mostUsedTags.length > 0 ? (
+                        <div className="space-y-3">
+                          {stats.mostUsedTags.map((tag, index) => (
+                            <div key={tag.name} className="flex items-center justify-between p-3 bg-dark-300 rounded-lg">
+                              <div className="flex items-center gap-3">
+                                <span className="text-2xl font-bold text-primary-400 w-8">#{index + 1}</span>
+                                <div>
+                                  <p className="text-white font-medium">{tag.name}</p>
+                                  <p className="text-gray-500 text-sm">
+                                    {categoriesList.find(c => c.id === tag.category)?.name || tag.category}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-white font-semibold">{tag.usageCount} 次</p>
+                                <p className="text-gray-500 text-sm">{tag.relatedWorks.length} 个作品</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-gray-500 text-center py-8">暂无标签数据</p>
+                      );
+                    })()}
+                  </div>
+                </div>
+
+                {/* 标签同步日志 */}
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                      <History className="w-5 h-5 text-primary-400" />
+                      标签同步日志
+                    </h3>
+                    {getTagSyncLogs().length > 0 && (
+                      <button
+                        onClick={() => {
+                          if (confirm('确定要清除所有日志吗？')) {
+                            clearTagSyncLogs();
+                          }
+                        }}
+                        className="px-3 py-1.5 text-sm text-red-400 hover:text-red-300 hover:bg-red-500/20 rounded-lg transition-colors"
+                      >
+                        清除日志
+                      </button>
+                    )}
+                  </div>
+                  <div className="bg-dark-200 rounded-xl p-4 max-h-96 overflow-y-auto">
+                    {(() => {
+                      const logs = getTagSyncLogs();
+                      return logs.length > 0 ? (
+                        <div className="space-y-2">
+                          {logs.map((log) => (
+                            <div key={log.id} className="flex items-start gap-3 p-3 bg-dark-300 rounded-lg">
+                              <div className={`p-2 rounded-lg ${
+                                log.action === 'add' ? 'bg-green-500/20 text-green-400' :
+                                log.action === 'update' ? 'bg-blue-500/20 text-blue-400' :
+                                log.action === 'delete' ? 'bg-red-500/20 text-red-400' :
+                                'bg-yellow-500/20 text-yellow-400'
+                              }`}>
+                                {log.action === 'add' && <TagIcon className="w-4 h-4" />}
+                                {log.action === 'update' && <RefreshCw className="w-4 h-4" />}
+                                {log.action === 'delete' && <Trash2 className="w-4 h-4" />}
+                                {log.action === 'merge' && <Layers className="w-4 h-4" />}
+                              </div>
+                              <div className="flex-1">
+                                <div className="flex items-center justify-between mb-1">
+                                  <span className="text-white font-medium">
+                                    {log.action === 'add' ? '添加标签' :
+                                     log.action === 'update' ? '更新标签' :
+                                     log.action === 'delete' ? '删除标签' : '合并标签'}: {log.tagName}
+                                  </span>
+                                  <span className="text-gray-500 text-xs">
+                                    {new Date(log.timestamp).toLocaleString('zh-CN')}
+                                  </span>
+                                </div>
+                                <p className="text-gray-400 text-sm">{log.details}</p>
+                                <p className="text-gray-500 text-xs mt-1">
+                                  分类: {categoriesList.find(c => c.id === log.category)?.name || log.category}
+                                </p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-gray-500 text-center py-8">暂无同步日志</p>
+                      );
+                    })()}
+                  </div>
                 </div>
               </>
             )}
@@ -1148,6 +1352,32 @@ export default function Admin() {
                     </div>
                   )}
                 </div>
+                
+                {/* 标签反馈消息 */}
+                {tagFeedback && (
+                  <div className={`mt-2 p-3 rounded-lg text-sm flex items-start gap-2 ${
+                    tagFeedback.type === 'success' ? 'bg-green-500/20 text-green-400 border border-green-500/30' :
+                    tagFeedback.type === 'warning' ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30' :
+                    'bg-red-500/20 text-red-400 border border-red-500/30'
+                  }`}>
+                    {tagFeedback.type === 'success' && <CheckCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />}
+                    {tagFeedback.type === 'warning' && <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />}
+                    {tagFeedback.type === 'error' && <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />}
+                    <span>{tagFeedback.message}</span>
+                  </div>
+                )}
+                
+                {/* 标签验证建议 */}
+                {tagValidationResult && tagValidationResult.suggestions.length > 0 && (
+                  <div className="mt-2 p-3 bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-lg text-sm">
+                    <p className="flex items-center gap-2">
+                      <TagIcon className="w-4 h-4" />
+                      <strong>提示：</strong>
+                    </p>
+                    <p className="mt-1">{tagValidationResult.suggestions[0]}</p>
+                  </div>
+                )}
+                
                 {/* 显示当前分类的推荐标签 */}
                 <div className="mb-3">
                   <p className="text-gray-500 text-xs mb-2">{categoriesList.find(c => c.id === newWork.category)?.name}分类推荐标签：</p>
@@ -1728,6 +1958,14 @@ export default function Admin() {
                 </button>
                 <button
                   onClick={() => {
+                    // 批量更新标签元数据
+                    if (editingWork?.tags && editingWork.tags.length > 0) {
+                      const result = batchAddTagsMetadata(editingWork.tags, editingWork.category, editingWork.id);
+                      if (result.failed > 0) {
+                        console.warn('部分标签更新失败:', result.errors);
+                      }
+                    }
+                    
                     setWorksList(
                       worksList.map((w) =>
                         w.id === editingWork?.id ? editingWork : w

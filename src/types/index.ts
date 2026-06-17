@@ -55,3 +55,31 @@ export interface AdminUser {
   username: string
   password: string
 }
+
+// 标签元数据接口
+export interface TagMetadata {
+  name: string
+  category: CategoryType
+  createdAt: string
+  usageCount: number
+  relatedWorks: string[] // 关联的作品ID列表
+}
+
+// 标签同步日志接口
+export interface TagSyncLog {
+  id: string
+  action: 'add' | 'update' | 'delete' | 'merge'
+  tagName: string
+  category: CategoryType
+  timestamp: string
+  details: string
+  userId?: string
+}
+
+// 标签验证结果接口
+export interface TagValidationResult {
+  isValid: boolean
+  errors: string[]
+  warnings: string[]
+  suggestions: string[]
+}
