@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
 import { Lock, Unlock, Plus, Trash2, Edit3, Save, X, Eye, EyeOff, List, Layout, Image, Video, Sparkles, Box, Grid3x3, Palette, Camera, MoreHorizontal, Layers, Star, Wand2, Code, Palette as Paint, Brush, Zap, Globe, Music, Gamepad2, Award, Crown, Feather, Heart, Sun, Moon, Coffee, BookOpen, PenTool, Upload, RefreshCw, Check, AlertCircle, RotateCcw } from 'lucide-react';
-import { categories, works } from '../data/mockData';
 import { getCategories, getWorks, saveCategories, saveWorks, resetToDefault } from '../data/storage';
 import { Category, Work, CategoryType } from '../types';
 
@@ -556,7 +555,7 @@ export default function Admin() {
                           </td>
                           <td className="py-3 px-4">
                             <span className="text-gray-400">
-                              {categories.find((c) => c.id === work.category)?.name}
+                              {categoriesList.find((c) => c.id === work.category)?.name}
                             </span>
                           </td>
                           <td className="py-3 px-4">
