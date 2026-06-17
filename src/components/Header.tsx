@@ -41,7 +41,7 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
               <span className="text-white font-bold text-lg">P</span>
             </div>
             <span className="text-xl font-bold text-white hidden sm:block">
-              创意作品集
+              巧克力的作品集
             </span>
           </Link>
 

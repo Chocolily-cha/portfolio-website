@@ -1,4 +1,4 @@
-import { Mail, Github, Instagram, Twitter, Heart } from 'lucide-react'
+import { Heart } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
 export default function Footer() {
@@ -13,47 +13,11 @@ export default function Footer() {
               <div className="w-10 h-10 bg-gradient-primary rounded-xl flex items-center justify-center">
                 <span className="text-white font-bold text-lg">P</span>
               </div>
-              <span className="text-xl font-bold text-white">创意作品集</span>
+              <span className="text-xl font-bold text-white">巧克力的作品集</span>
             </div>
-            <p className="text-gray-400 text-sm leading-relaxed mb-4 max-w-md">
+            <p className="text-gray-400 text-sm leading-relaxed max-w-md">
               探索我的创意世界，这里汇集了AI动画、三维动画、3D模型、绘画、摄影等多种艺术形式的作品。感谢您的访问！
             </p>
-            <div className="flex items-center gap-4">
-              <a
-                href="mailto:contact@example.com"
-                className="p-2 bg-dark-100 hover:bg-dark-200 rounded-lg text-gray-400 hover:text-white transition-colors"
-                title="邮箱"
-              >
-                <Mail className="w-5 h-5" />
-              </a>
-              <a
-                href="https://github.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="p-2 bg-dark-100 hover:bg-dark-200 rounded-lg text-gray-400 hover:text-white transition-colors"
-                title="GitHub"
-              >
-                <Github className="w-5 h-5" />
-              </a>
-              <a
-                href="https://instagram.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="p-2 bg-dark-100 hover:bg-dark-200 rounded-lg text-gray-400 hover:text-white transition-colors"
-                title="Instagram"
-              >
-                <Instagram className="w-5 h-5" />
-              </a>
-              <a
-                href="https://twitter.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="p-2 bg-dark-100 hover:bg-dark-200 rounded-lg text-gray-400 hover:text-white transition-colors"
-                title="Twitter"
-              >
-                <Twitter className="w-5 h-5" />
-              </a>
-            </div>
           </div>
 
           <div>
@@ -135,7 +99,7 @@ export default function Footer() {
 
         <div className="border-t border-gray-800 mt-12 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
           <p className="text-gray-500 text-sm">
-            © {currentYear} 创意作品集. 保留所有权利.
+            © {currentYear} 巧克力的作品集. 保留所有权利.
           </p>
           <p className="text-gray-500 text-sm flex items-center gap-1">
             用

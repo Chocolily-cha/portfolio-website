@@ -32,7 +32,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         }`}
       >
         <div className="flex items-center justify-between p-6 border-b border-gray-700">
-          <span className="text-xl font-bold text-white">创意作品集</span>
+          <span className="text-xl font-bold text-white">巧克力的作品集</span>
           <button
             onClick={onClose}
             className="p-2 text-gray-400 hover:text-white hover:bg-dark-300 rounded-lg transition-colors"

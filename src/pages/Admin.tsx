@@ -102,6 +102,72 @@ export default function Admin() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const replaceFileInputRef = useRef<HTMLInputElement>(null);
 
+  // 分类相关的标签和技术细节模板
+  const categoryTemplates: Record<string, { tags: string[], technicalDetails: TechnicalDetail[] }> = {
+    'ai-animation': {
+      tags: ['AI生成', '动画', '超现实', '数字艺术', '水墨画', 'MidJourney', 'Stable Diffusion', 'Runway ML'],
+      technicalDetails: [
+        { label: '生成工具', value: '' },
+        { label: '分辨率', value: '' },
+        { label: '时长', value: '' },
+      ],
+    },
+    '3d-animation': {
+      tags: ['3D动画', '未来城市', '科幻', '海洋', '自然', 'Blender', 'Maya', 'Cycles'],
+      technicalDetails: [
+        { label: '软件', value: '' },
+        { label: '渲染器', value: '' },
+        { label: '时长', value: '' },
+        { label: '分辨率', value: '' },
+      ],
+    },
+    'model': {
+      tags: ['3D模型', '汽车', '复古', '建筑', '科幻', 'Blender', '3ds Max', 'FBX'],
+      technicalDetails: [
+        { label: '软件', value: '' },
+        { label: '面数', value: '' },
+        { label: '纹理分辨率', value: '' },
+        { label: '格式', value: '' },
+      ],
+    },
+    'painting': {
+      tags: ['数字绘画', '星空', '梦幻', '油画', '城市', '风景', 'Procreate', 'Photoshop'],
+      technicalDetails: [
+        { label: '工具', value: '' },
+        { label: '尺寸', value: '' },
+        { label: '媒介', value: '' },
+        { label: '耗时', value: '' },
+      ],
+    },
+    'photography': {
+      tags: ['风景', '自然', '晨雾', '人像', '光影', '艺术', '纪实', '街头', '城市'],
+      technicalDetails: [
+        { label: '相机', value: '' },
+        { label: '镜头', value: '' },
+        { label: 'ISO', value: '' },
+        { label: '快门', value: '' },
+      ],
+    },
+    'other': {
+      tags: ['平面设计', '海报', '品牌', 'UI设计', '移动应用', '用户体验', 'Figma', 'Adobe'],
+      technicalDetails: [
+        { label: '软件', value: '' },
+        { label: '尺寸', value: '' },
+        { label: '格式', value: '' },
+      ],
+    },
+  };
+
+  // 获取当前分类的可用标签
+  const getCategoryTags = (categoryId: string): string[] => {
+    return categoryTemplates[categoryId]?.tags || [];
+  };
+
+  // 获取当前分类的默认技术细节模板
+  const getCategoryTechnicalDetails = (categoryId: string): TechnicalDetail[] => {
+    return categoryTemplates[categoryId]?.technicalDetails || DEFAULT_TECHNICAL_DETAILS;
+  };
+
   // 扩展图标库
   const icons = [
     { name: 'Sparkles', component: Sparkles },
@@ -343,8 +409,8 @@ export default function Admin() {
   };
 
   const handleAddWork = () => {
-    if (!newWork.title || !newWork.description) {
-      setError('请填写作品名称和描述');
+    if (!newWork.title) {
+      setError('请填写作品名称');
       return;
     }
 
@@ -814,7 +880,7 @@ export default function Admin() {
               </div>
 
               <div>
-                <label className="block text-gray-400 text-sm mb-2">作品描述 *</label>
+                <label className="block text-gray-400 text-sm mb-2">作品描述</label>
                 <textarea
                   value={newWork.description || ''}
                   onChange={(e) => setNewWork({ ...newWork, description: e.target.value })}
@@ -827,7 +893,21 @@ export default function Admin() {
                 <label className="block text-gray-400 text-sm mb-2">分类</label>
                 <select
                   value={newWork.category || 'other'}
-                  onChange={(e) => setNewWork({ ...newWork, category: e.target.value as CategoryType })}
+                  onChange={(e) => {
+                    const newCategory = e.target.value as CategoryType;
+                    // 获取新分类的技术细节模板
+                    const newTechnicalDetails = getCategoryTechnicalDetails(newCategory);
+                    // 保留已有值但更新标签
+                    const updatedTechnicalDetails = newTechnicalDetails.map((template, index) => ({
+                      ...template,
+                      value: (newWork.technicalDetails?.[index]?.value) || '',
+                    }));
+                    setNewWork({ 
+                      ...newWork, 
+                      category: newCategory,
+                      technicalDetails: updatedTechnicalDetails,
+                    });
+                  }}
                   className="w-full bg-dark-200 border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary-500 transition-colors"
                 >
                   {categoriesList.map((cat) => (
@@ -882,26 +962,24 @@ export default function Admin() {
                     </div>
                   )}
                 </div>
-                {availableTags.length > 0 && (
-                  <div className="mb-3">
-                    <p className="text-gray-500 text-xs mb-2">快速选择已有标签：</p>
-                    <div className="flex flex-wrap gap-2">
-                      {availableTags
-                        .filter(t => !newWork.tags?.includes(t))
-                        .slice(0, 10)
-                        .map((tag) => (
-                          <button
-                            key={tag}
-                            onClick={() => handleSelectExistingTag(tag)}
-                            className="flex items-center gap-1 px-2 py-1 bg-dark-200 text-gray-400 rounded-full text-xs hover:bg-primary-500/20 hover:text-primary-400 transition-colors border border-gray-700"
-                          >
-                            <Plus className="w-3 h-3" />
-                            {tag}
-                          </button>
-                        ))}
-                    </div>
+                {/* 显示当前分类的推荐标签 */}
+                <div className="mb-3">
+                  <p className="text-gray-500 text-xs mb-2">{categoriesList.find(c => c.id === newWork.category)?.name}分类推荐标签：</p>
+                  <div className="flex flex-wrap gap-2">
+                    {getCategoryTags(newWork.category || 'other')
+                      .filter(t => !newWork.tags?.includes(t))
+                      .map((tag) => (
+                        <button
+                          key={tag}
+                          onClick={() => handleSelectExistingTag(tag)}
+                          className="flex items-center gap-1 px-2 py-1 bg-dark-200 text-gray-400 rounded-full text-xs hover:bg-primary-500/20 hover:text-primary-400 transition-colors border border-gray-700"
+                        >
+                          <Plus className="w-3 h-3" />
+                          {tag}
+                        </button>
+                      ))}
                   </div>
-                )}
+                </div>
                 <div className="flex flex-wrap gap-2">
                   {newWork.tags?.map((tag) => (
                     <span
