@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
-import { Lock, Unlock, Plus, Trash2, Edit3, Save, X, Eye, EyeOff, List, Layout, Image, Video, Sparkles, Box, Grid3x3, Palette, Camera, MoreHorizontal, Layers, Star, Wand2, Code, Palette as Paint, Brush, Zap, Globe, Music, Gamepad2, Award, Crown, Feather, Heart, Sun, Moon, Coffee, BookOpen, PenTool, Upload, RefreshCw, Check, AlertCircle, RotateCcw } from 'lucide-react';
-import { getCategories, getWorks, saveCategories, saveWorks, resetToDefault } from '../data/storage';
-import { Category, Work, CategoryType } from '../types';
+import { Lock, Unlock, Plus, Trash2, Edit3, Save, X, Eye, EyeOff, List, Layout, Image, Video, Sparkles, Box, Grid3x3, Palette, Camera, MoreHorizontal, Layers, Star, Wand2, Code, Palette as Paint, Brush, Zap, Globe, Music, Gamepad2, Award, Crown, Feather, Heart, Sun, Moon, Coffee, BookOpen, PenTool, Upload, RefreshCw, Check, AlertCircle, RotateCcw, ChevronDown } from 'lucide-react';
+import { getCategories, getWorks, saveCategories, saveWorks, resetToDefault, getAllTags } from '../data/storage';
+import { Category, Work, CategoryType, TechnicalDetail } from '../types';
 
 // 文件上传状态类型
 interface UploadState {
@@ -20,6 +20,20 @@ const ACCEPTED_FILE_TYPES = {
 };
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+
+const generateRandomViews = (): number => {
+  return Math.floor(Math.random() * (2000 - 800 + 1)) + 800;
+};
+
+const generateRandomLikes = (): number => {
+  return Math.floor(Math.random() * (300 - 80 + 1)) + 80;
+};
+
+const DEFAULT_TECHNICAL_DETAILS: TechnicalDetail[] = [
+  { label: '技术栈', value: '' },
+  { label: '实现方法', value: '' },
+  { label: '开发周期', value: '' },
+];
 
 export default function Admin() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -59,6 +73,15 @@ export default function Admin() {
     technicalDetails: [],
   });
   const [tagInput, setTagInput] = useState('');
+  const [showTagDropdown, setShowTagDropdown] = useState(false);
+  const [editingWorkTagInput, setEditingWorkTagInput] = useState('');
+  const [editingWorkShowTagDropdown, setEditingWorkShowTagDropdown] = useState(false);
+
+  const [availableTags, setAvailableTags] = useState<string[]>(getAllTags());
+
+  useEffect(() => {
+    setAvailableTags(getAllTags());
+  }, [worksList]);
 
   // 文件上传相关状态
   const [uploadState, setUploadState] = useState<UploadState>({
@@ -334,9 +357,9 @@ export default function Admin() {
       createdAt: new Date().toISOString().split('T')[0],
       updatedAt: new Date().toISOString().split('T')[0],
       media: newWork.media || [],
-      technicalDetails: newWork.technicalDetails || [],
-      views: 0,
-      likes: 0,
+      technicalDetails: (newWork.technicalDetails || []).filter(td => td.value.trim() !== ''),
+      views: generateRandomViews(),
+      likes: generateRandomLikes(),
     };
 
     setWorksList([...worksList, work]);
@@ -349,9 +372,107 @@ export default function Admin() {
       technicalDetails: [],
     });
     setTagInput('');
+    setShowTagDropdown(false);
     setShowAddWork(false);
     setError('');
     alert('作品添加成功！');
+  };
+
+  const handleSelectExistingTag = (tag: string) => {
+    if (!newWork.tags?.includes(tag)) {
+      setNewWork({
+        ...newWork,
+        tags: [...(newWork.tags || []), tag],
+      });
+    }
+    setTagInput('');
+    setShowTagDropdown(false);
+  };
+
+  const handleEditingWorkSelectTag = (tag: string) => {
+    if (!editingWork?.tags.includes(tag)) {
+      setEditingWork({
+        ...editingWork!,
+        tags: [...(editingWork!.tags || []), tag],
+      });
+    }
+    setEditingWorkTagInput('');
+    setEditingWorkShowTagDropdown(false);
+  };
+
+  const handleEditingWorkAddTag = () => {
+    if (editingWorkTagInput.trim() && !editingWork?.tags?.includes(editingWorkTagInput.trim())) {
+      setEditingWork({
+        ...editingWork!,
+        tags: [...(editingWork!.tags || []), editingWorkTagInput.trim()],
+      });
+      setEditingWorkTagInput('');
+    }
+  };
+
+  const handleEditingWorkRemoveTag = (tag: string) => {
+    setEditingWork({
+      ...editingWork!,
+      tags: editingWork!.tags?.filter((t) => t !== tag) || [],
+    });
+  };
+
+  const handleAddTechnicalDetail = () => {
+    const newDetails = [...(newWork.technicalDetails || []), { label: '', value: '' }];
+    setNewWork({ ...newWork, technicalDetails: newDetails });
+  };
+
+  const handleUpdateTechnicalDetail = (index: number, field: 'label' | 'value', value: string) => {
+    const newDetails = [...(newWork.technicalDetails || [])];
+    newDetails[index] = { ...newDetails[index], [field]: value };
+    setNewWork({ ...newWork, technicalDetails: newDetails });
+  };
+
+  const handleRemoveTechnicalDetail = (index: number) => {
+    const newDetails = (newWork.technicalDetails || []).filter((_, i) => i !== index);
+    setNewWork({ ...newWork, technicalDetails: newDetails });
+  };
+
+  const handleEditingWorkAddTechnicalDetail = () => {
+    const newDetails = [...(editingWork!.technicalDetails || []), { label: '', value: '' }];
+    setEditingWork({ ...editingWork!, technicalDetails: newDetails });
+  };
+
+  const handleEditingWorkUpdateTechnicalDetail = (index: number, field: 'label' | 'value', value: string) => {
+    const newDetails = [...(editingWork!.technicalDetails || [])];
+    newDetails[index] = { ...newDetails[index], [field]: value };
+    setEditingWork({ ...editingWork!, technicalDetails: newDetails });
+  };
+
+  const handleEditingWorkRemoveTechnicalDetail = (index: number) => {
+    const newDetails = (editingWork!.technicalDetails || []).filter((_, i) => i !== index);
+    setEditingWork({ ...editingWork!, technicalDetails: newDetails });
+  };
+
+  const initNewWorkForm = () => {
+    setNewWork({
+      title: '',
+      description: '',
+      category: 'ai-animation',
+      tags: [],
+      media: [],
+      technicalDetails: DEFAULT_TECHNICAL_DETAILS.map(td => ({ ...td })),
+    });
+    setTagInput('');
+    setShowTagDropdown(false);
+    setUploadState({ isUploading: false, progress: 0, status: 'idle', message: '', fileName: '' });
+  };
+
+  const initEditingWorkForm = (work: Work) => {
+    setEditingWork({
+      ...work,
+      technicalDetails: work.technicalDetails && work.technicalDetails.length > 0
+        ? work.technicalDetails.map(td => ({ ...td }))
+        : DEFAULT_TECHNICAL_DETAILS.map(td => ({ ...td })),
+    });
+    setEditingWorkTagInput('');
+    setEditingWorkShowTagDropdown(false);
+    setReplaceUploadState({ isUploading: false, progress: 0, status: 'idle', message: '', fileName: '' });
   };
 
   const handleDeleteWork = (workId: string) => {
@@ -528,7 +649,7 @@ export default function Admin() {
                 <div className="flex justify-between items-center mb-6">
                   <h2 className="text-xl font-semibold text-white">作品列表</h2>
                   <button
-                    onClick={() => setShowAddWork(true)}
+                    onClick={() => { initNewWorkForm(); setShowAddWork(true); }}
                     className="flex items-center gap-2 px-4 py-2 bg-gradient-primary text-white rounded-xl font-medium hover:opacity-90 transition-opacity"
                   >
                     <Plus className="w-4 h-4" />
@@ -567,7 +688,7 @@ export default function Admin() {
                           <td className="py-3 px-4 text-right">
                             <div className="flex justify-end gap-2">
                               <button
-                                onClick={() => setEditingWork(work)}
+                                onClick={() => initEditingWorkForm(work)}
                                 className="p-2 hover:bg-dark-200 rounded-lg text-gray-400 hover:text-white transition-colors"
                               >
                                 <Edit3 className="w-4 h-4" />
@@ -719,13 +840,20 @@ export default function Admin() {
 
               <div>
                 <label className="block text-gray-400 text-sm mb-2">标签</label>
-                <div className="flex gap-2 mb-2">
+                <div className="relative flex gap-2 mb-2">
                   <input
                     type="text"
                     value={tagInput}
-                    onChange={(e) => setTagInput(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddTag())}
-                    placeholder="输入标签后按回车添加"
+                    onChange={(e) => { setTagInput(e.target.value); setShowTagDropdown(e.target.value.trim().length > 0); }}
+                    onFocus={() => tagInput.trim().length > 0 && setShowTagDropdown(true)}
+                    onBlur={() => setTimeout(() => setShowTagDropdown(false), 200)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAddTag();
+                      }
+                    }}
+                    placeholder="输入标签后按回车添加，或从下方选择已有标签"
                     className="flex-1 bg-dark-200 border border-gray-700 rounded-xl px-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-primary-500 transition-colors"
                   />
                   <button
@@ -734,7 +862,46 @@ export default function Admin() {
                   >
                     添加
                   </button>
+                  {showTagDropdown && availableTags.filter(t => t.toLowerCase().includes(tagInput.toLowerCase()) && !newWork.tags?.includes(t)).length > 0 && (
+                    <div className="absolute top-full left-0 right-16 mt-2 bg-dark-200 border border-gray-700 rounded-xl p-2 z-10 max-h-48 overflow-y-auto shadow-lg">
+                      <p className="text-gray-500 text-xs mb-2 px-2">点击选择已有标签</p>
+                      <div className="flex flex-wrap gap-2">
+                        {availableTags
+                          .filter(t => t.toLowerCase().includes(tagInput.toLowerCase()) && !newWork.tags?.includes(t))
+                          .map((tag) => (
+                            <button
+                              key={tag}
+                              onClick={() => handleSelectExistingTag(tag)}
+                              className="flex items-center gap-1 px-3 py-1 bg-dark-300 text-gray-300 rounded-full text-sm hover:bg-primary-500/20 hover:text-primary-400 transition-colors"
+                            >
+                              <Plus className="w-3 h-3" />
+                              {tag}
+                            </button>
+                          ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
+                {availableTags.length > 0 && (
+                  <div className="mb-3">
+                    <p className="text-gray-500 text-xs mb-2">快速选择已有标签：</p>
+                    <div className="flex flex-wrap gap-2">
+                      {availableTags
+                        .filter(t => !newWork.tags?.includes(t))
+                        .slice(0, 10)
+                        .map((tag) => (
+                          <button
+                            key={tag}
+                            onClick={() => handleSelectExistingTag(tag)}
+                            className="flex items-center gap-1 px-2 py-1 bg-dark-200 text-gray-400 rounded-full text-xs hover:bg-primary-500/20 hover:text-primary-400 transition-colors border border-gray-700"
+                          >
+                            <Plus className="w-3 h-3" />
+                            {tag}
+                          </button>
+                        ))}
+                    </div>
+                  </div>
+                )}
                 <div className="flex flex-wrap gap-2">
                   {newWork.tags?.map((tag) => (
                     <span
@@ -747,7 +914,53 @@ export default function Admin() {
                       </button>
                     </span>
                   ))}
+                  {newWork.tags?.length === 0 && (
+                    <span className="text-gray-500 text-sm">暂无标签</span>
+                  )}
                 </div>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-gray-400 text-sm">技术细节</label>
+                  <button
+                    onClick={handleAddTechnicalDetail}
+                    className="flex items-center gap-1 px-2 py-1 text-xs text-primary-400 hover:text-primary-300 transition-colors"
+                  >
+                    <Plus className="w-3 h-3" />
+                    添加技术项
+                  </button>
+                </div>
+                <div className="space-y-2">
+                  {newWork.technicalDetails?.map((td, index) => (
+                    <div key={index} className="flex gap-2 items-start">
+                      <input
+                        type="text"
+                        value={td.label}
+                        onChange={(e) => handleUpdateTechnicalDetail(index, 'label', e.target.value)}
+                        placeholder="标签（如：技术栈、分辨率、时长）"
+                        className="w-32 bg-dark-200 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-primary-500 transition-colors"
+                      />
+                      <input
+                        type="text"
+                        value={td.value}
+                        onChange={(e) => handleUpdateTechnicalDetail(index, 'value', e.target.value)}
+                        placeholder="值"
+                        className="flex-1 bg-dark-200 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-primary-500 transition-colors"
+                      />
+                      <button
+                        onClick={() => handleRemoveTechnicalDetail(index)}
+                        className="p-2 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                  {newWork.technicalDetails?.length === 0 && (
+                    <p className="text-gray-500 text-sm text-center py-4">暂无技术细节，点击上方"添加技术项"按钮添加</p>
+                  )}
+                </div>
+                <p className="text-gray-500 text-xs mt-2">建议添加：技术栈、实现方法、开发周期、分辨率、版本等信息</p>
               </div>
 
               <div>
@@ -997,6 +1210,131 @@ export default function Admin() {
                     </option>
                   ))}
                 </select>
+              </div>
+
+              <div>
+                <label className="block text-gray-400 text-sm mb-2">标签</label>
+                <div className="relative flex gap-2 mb-2">
+                  <input
+                    type="text"
+                    value={editingWorkTagInput}
+                    onChange={(e) => { setEditingWorkTagInput(e.target.value); setEditingWorkShowTagDropdown(e.target.value.trim().length > 0); }}
+                    onFocus={() => editingWorkTagInput.trim().length > 0 && setEditingWorkShowTagDropdown(true)}
+                    onBlur={() => setTimeout(() => setEditingWorkShowTagDropdown(false), 200)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleEditingWorkAddTag();
+                      }
+                    }}
+                    placeholder="输入标签后按回车添加，或从下方选择已有标签"
+                    className="flex-1 bg-dark-200 border border-gray-700 rounded-xl px-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-primary-500 transition-colors"
+                  />
+                  <button
+                    onClick={handleEditingWorkAddTag}
+                    className="px-4 py-2 bg-dark-200 text-white rounded-xl hover:bg-dark-300 transition-colors"
+                  >
+                    添加
+                  </button>
+                  {editingWorkShowTagDropdown && availableTags.filter(t => t.toLowerCase().includes(editingWorkTagInput.toLowerCase()) && !editingWork?.tags?.includes(t)).length > 0 && (
+                    <div className="absolute top-full left-0 right-16 mt-2 bg-dark-200 border border-gray-700 rounded-xl p-2 z-10 max-h-48 overflow-y-auto shadow-lg">
+                      <p className="text-gray-500 text-xs mb-2 px-2">点击选择已有标签</p>
+                      <div className="flex flex-wrap gap-2">
+                        {availableTags
+                          .filter(t => t.toLowerCase().includes(editingWorkTagInput.toLowerCase()) && !editingWork?.tags?.includes(t))
+                          .map((tag) => (
+                            <button
+                              key={tag}
+                              onClick={() => handleEditingWorkSelectTag(tag)}
+                              className="flex items-center gap-1 px-3 py-1 bg-dark-300 text-gray-300 rounded-full text-sm hover:bg-primary-500/20 hover:text-primary-400 transition-colors"
+                            >
+                              <Plus className="w-3 h-3" />
+                              {tag}
+                            </button>
+                          ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                {availableTags.length > 0 && (
+                  <div className="mb-3">
+                    <p className="text-gray-500 text-xs mb-2">快速选择已有标签：</p>
+                    <div className="flex flex-wrap gap-2">
+                      {availableTags
+                        .filter(t => !editingWork?.tags?.includes(t))
+                        .slice(0, 10)
+                        .map((tag) => (
+                          <button
+                            key={tag}
+                            onClick={() => handleEditingWorkSelectTag(tag)}
+                            className="flex items-center gap-1 px-2 py-1 bg-dark-200 text-gray-400 rounded-full text-xs hover:bg-primary-500/20 hover:text-primary-400 transition-colors border border-gray-700"
+                          >
+                            <Plus className="w-3 h-3" />
+                            {tag}
+                          </button>
+                        ))}
+                    </div>
+                  </div>
+                )}
+                <div className="flex flex-wrap gap-2">
+                  {editingWork.tags?.map((tag) => (
+                    <span
+                      key={tag}
+                      className="flex items-center gap-1 px-3 py-1 bg-primary-500/20 text-primary-400 rounded-full text-sm"
+                    >
+                      {tag}
+                      <button onClick={() => handleEditingWorkRemoveTag(tag)} className="hover:text-white">
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ))}
+                  {editingWork.tags?.length === 0 && (
+                    <span className="text-gray-500 text-sm">暂无标签</span>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-gray-400 text-sm">技术细节</label>
+                  <button
+                    onClick={handleEditingWorkAddTechnicalDetail}
+                    className="flex items-center gap-1 px-2 py-1 text-xs text-primary-400 hover:text-primary-300 transition-colors"
+                  >
+                    <Plus className="w-3 h-3" />
+                    添加技术项
+                  </button>
+                </div>
+                <div className="space-y-2">
+                  {editingWork.technicalDetails?.map((td, index) => (
+                    <div key={index} className="flex gap-2 items-start">
+                      <input
+                        type="text"
+                        value={td.label}
+                        onChange={(e) => handleEditingWorkUpdateTechnicalDetail(index, 'label', e.target.value)}
+                        placeholder="标签（如：技术栈、分辨率、时长）"
+                        className="w-32 bg-dark-200 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-primary-500 transition-colors"
+                      />
+                      <input
+                        type="text"
+                        value={td.value}
+                        onChange={(e) => handleEditingWorkUpdateTechnicalDetail(index, 'value', e.target.value)}
+                        placeholder="值"
+                        className="flex-1 bg-dark-200 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-primary-500 transition-colors"
+                      />
+                      <button
+                        onClick={() => handleEditingWorkRemoveTechnicalDetail(index)}
+                        className="p-2 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                  {editingWork.technicalDetails?.length === 0 && (
+                    <p className="text-gray-500 text-sm text-center py-4">暂无技术细节，点击上方"添加技术项"按钮添加</p>
+                  )}
+                </div>
+                <p className="text-gray-500 text-xs mt-2">建议添加：技术栈、实现方法、开发周期、分辨率、版本等信息</p>
               </div>
 
               {/* 替换作品功能 */}

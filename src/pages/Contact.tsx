@@ -92,7 +92,7 @@ export default function Contact() {
  </div>
  <div>
  <p className="text-gray-400 text-sm">邮箱</p>
- <p className="text-white">contact@example.com</p>
+ <p className="text-white">phq_e_mail@163.com</p>
  </div>
  </div>
  <div className="flex items-start gap-4">
@@ -101,7 +101,7 @@ export default function Contact() {
  </div>
  <div>
  <p className="text-gray-400 text-sm">电话</p>
- <p className="text-white">+86 123 4567 8900</p>
+ <p className="text-white">+86 132 4241 5882</p>
  </div>
  </div>
  <div className="flex items-start gap-4">
@@ -110,34 +110,12 @@ export default function Contact() {
  </div>
  <div>
  <p className="text-gray-400 text-sm">地址</p>
- <p className="text-white">北京市朝阳区创意设计中心</p>
+ <p className="text-white">深圳市南山区</p>
  </div>
  </div>
  </div>
  </div>
 
- <div className="bg-dark-100 rounded-2xl p-6">
- <h3 className="text-lg font-semibold text-white mb-4">社交媒体</h3>
- <div className="flex gap-3">
- <a href="https://github.com" target="_blank" rel="noopener noreferrer" className="p-3 bg-dark-200 hover:bg-dark-300 rounded-xl text-gray-400 hover:text-white transition-colors" title="GitHub">
- <Github className="w-5 h-5"/>
- </a>
- <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" className="p-3 bg-dark-200 hover:bg-dark-300 rounded-xl text-gray-400 hover:text-white transition-colors" title="Instagram">
- <Instagram className="w-5 h-5"/>
- </a>
- <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" className="p-3 bg-dark-200 hover:bg-dark-300 rounded-xl text-gray-400 hover:text-white transition-colors" title="Twitter">
- <Twitter className="w-5 h-5"/>
- </a>
- </div>
- </div>
-
- <div className="bg-gradient-to-br from-primary-500/20 to-accent-500/20 rounded-2xl p-6">
- <h3 className="text-lg font-semibold text-white mb-2">工作时间</h3>
- <p className="text-gray-400 text-sm">
- 周一至周五: 9:00 - 18:00<br />
- 周末: 休息
- </p>
- </div>
  </div>
  </div>
  </div>

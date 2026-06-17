@@ -41,7 +41,7 @@ export default function Home() {
  <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
  <div className="animate-fade-in">
  <span className="inline-block px-4 py-2 bg-primary-500/20 text-primary-400 rounded-full text-sm font-medium mb-6">
- 创意作品集
+ 巧克力的作品集
  </span>
  <h1 className="text-4xl sm:text-5xl lg:text-7xl font-bold text-white mb-6">
  探索<span className="text-gradient">无限创意</span>
