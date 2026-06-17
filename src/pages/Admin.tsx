@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Lock, Unlock, Plus, Trash2, Edit3, Save, X, Eye, EyeOff, List, Layout, Image, Video, Sparkles, Box, Grid3x3, Palette, Camera, MoreHorizontal, Layers, Star, Wand2, Code, Palette as Paint, Brush, Zap, Globe, Music, Gamepad2, Award, Crown, Feather, Heart, Sun, Moon, Coffee, BookOpen, PenTool, Upload, RefreshCw, Check, AlertCircle, RotateCcw } from 'lucide-react';
+import { Lock, Unlock, Plus, Trash2, Edit3, Save, X, Eye, EyeOff, List, Layout, Image, Video, Sparkles, Box, Grid3x3, Palette, Camera, MoreHorizontal, Layers, Star, Wand2, Code, Palette as Paint, Brush, Zap, Globe, Music, Gamepad2, Award, Crown, Feather, Heart, Sun, Moon, Coffee, BookOpen, PenTool, Upload, RefreshCw, Check, AlertCircle, RotateCcw, Search, Filter, ArrowUpDown, X as CloseIcon } from 'lucide-react';
 import { getCategories, getWorks, saveCategories, saveWorks, resetToDefault, getAllTags } from '../data/storage';
 import { Category, Work, CategoryType, TechnicalDetail } from '../types';
 
@@ -102,6 +102,13 @@ export default function Admin() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const replaceFileInputRef = useRef<HTMLInputElement>(null);
 
+  // 排序和筛选状态
+  const [sortBy, setSortBy] = useState<'category' | 'time' | 'name'>('time');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [filterCategory, setFilterCategory] = useState<string>('all');
+  const [searchKeyword, setSearchKeyword] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
+
   // 分类相关的标签和技术细节模板
   const categoryTemplates: Record<string, { tags: string[], technicalDetails: TechnicalDetail[] }> = {
     'ai-animation': {
@@ -166,6 +173,66 @@ export default function Admin() {
   // 获取当前分类的默认技术细节模板
   const getCategoryTechnicalDetails = (categoryId: string): TechnicalDetail[] => {
     return categoryTemplates[categoryId]?.technicalDetails || DEFAULT_TECHNICAL_DETAILS;
+  };
+
+  // 排序和筛选逻辑
+  const getFilteredAndSortedWorks = (): Work[] => {
+    let filteredWorks = [...worksList];
+
+    // 按分类筛选
+    if (filterCategory !== 'all') {
+      filteredWorks = filteredWorks.filter(work => work.category === filterCategory);
+    }
+
+    // 按关键词搜索
+    if (searchKeyword.trim()) {
+      const keyword = searchKeyword.toLowerCase();
+      filteredWorks = filteredWorks.filter(work => 
+        work.title.toLowerCase().includes(keyword) ||
+        work.description.toLowerCase().includes(keyword) ||
+        work.tags.some(tag => tag.toLowerCase().includes(keyword)) ||
+        work.technicalDetails.some(td => 
+          td.label.toLowerCase().includes(keyword) || 
+          td.value.toLowerCase().includes(keyword)
+        )
+      );
+    }
+
+    // 排序
+    return filteredWorks.sort((a, b) => {
+      let comparison = 0;
+      
+      switch (sortBy) {
+        case 'category':
+          const categoryA = categoriesList.find(c => c.id === a.category)?.name || '';
+          const categoryB = categoriesList.find(c => c.id === b.category)?.name || '';
+          comparison = categoryA.localeCompare(categoryB, 'zh-CN');
+          break;
+        case 'time':
+          const timeA = new Date(a.updatedAt).getTime();
+          const timeB = new Date(b.updatedAt).getTime();
+          comparison = timeA - timeB;
+          break;
+        case 'name':
+          comparison = a.title.localeCompare(b.title, 'zh-CN', { sensitivity: 'base' });
+          break;
+      }
+
+      return sortOrder === 'asc' ? comparison : -comparison;
+    });
+  };
+
+  // 清除筛选条件
+  const clearFilters = () => {
+    setFilterCategory('all');
+    setSearchKeyword('');
+    setSortBy('time');
+    setSortOrder('desc');
+  };
+
+  // 检查是否有活动筛选
+  const hasActiveFilters = () => {
+    return filterCategory !== 'all' || searchKeyword.trim() !== '' || sortBy !== 'time' || sortOrder !== 'desc';
   };
 
   // 扩展图标库
@@ -712,16 +779,135 @@ export default function Admin() {
               </>
             ) : (
               <>
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-xl font-semibold text-white">作品列表</h2>
-                  <button
-                    onClick={() => { initNewWorkForm(); setShowAddWork(true); }}
-                    className="flex items-center gap-2 px-4 py-2 bg-gradient-primary text-white rounded-xl font-medium hover:opacity-90 transition-opacity"
-                  >
-                    <Plus className="w-4 h-4" />
-                    添加作品
-                  </button>
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                  <div className="flex items-center gap-4">
+                    <h2 className="text-xl font-semibold text-white">作品列表</h2>
+                    {hasActiveFilters() && (
+                      <button
+                        onClick={clearFilters}
+                        className="flex items-center gap-1 px-3 py-1.5 bg-red-500/20 text-red-400 rounded-lg text-sm hover:bg-red-500/30 transition-colors"
+                      >
+                        <CloseIcon className="w-3 h-3" />
+                        清除筛选
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setShowFilters(!showFilters)}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-colors ${
+                        showFilters ? 'bg-primary-500/20 text-primary-400' : 'bg-dark-200 text-gray-300 hover:bg-dark-300'
+                      }`}
+                    >
+                      <Filter className="w-4 h-4" />
+                      筛选
+                    </button>
+                    <button
+                      onClick={() => { initNewWorkForm(); setShowAddWork(true); }}
+                      className="flex items-center gap-2 px-4 py-2 bg-gradient-primary text-white rounded-xl font-medium hover:opacity-90 transition-opacity"
+                    >
+                      <Plus className="w-4 h-4" />
+                      添加作品
+                    </button>
+                  </div>
                 </div>
+
+                {/* 筛选和排序面板 */}
+                {showFilters && (
+                  <div className="mb-6 p-4 bg-dark-200 rounded-xl space-y-4">
+                    <div className="flex flex-col sm:flex-row gap-4">
+                      {/* 搜索框 */}
+                      <div className="flex-1">
+                        <label className="block text-gray-400 text-sm mb-2">关键词搜索</label>
+                        <div className="relative">
+                          <input
+                            type="text"
+                            value={searchKeyword}
+                            onChange={(e) => setSearchKeyword(e.target.value)}
+                            placeholder="搜索作品名称、描述、标签、技术细节..."
+                            className="w-full bg-dark-300 border border-gray-700 rounded-lg px-4 py-2.5 pl-10 text-white placeholder-gray-500 focus:outline-none focus:border-primary-500 transition-colors"
+                          />
+                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                        </div>
+                      </div>
+
+                      {/* 分类筛选 */}
+                      <div className="sm:w-48">
+                        <label className="block text-gray-400 text-sm mb-2">分类筛选</label>
+                        <select
+                          value={filterCategory}
+                          onChange={(e) => setFilterCategory(e.target.value)}
+                          className="w-full bg-dark-300 border border-gray-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-primary-500 transition-colors"
+                        >
+                          <option value="all">全部分类</option>
+                          {categoriesList.map((cat) => (
+                            <option key={cat.id} value={cat.id}>
+                              {cat.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row gap-4">
+                      {/* 排序方式 */}
+                      <div className="flex-1">
+                        <label className="block text-gray-400 text-sm mb-2">排序方式</label>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => setSortBy('category')}
+                            className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                              sortBy === 'category'
+                                ? 'bg-primary-500/20 text-primary-400 border border-primary-500'
+                                : 'bg-dark-300 text-gray-400 hover:text-white border border-gray-700'
+                            }`}
+                          >
+                            按分类
+                          </button>
+                          <button
+                            onClick={() => setSortBy('time')}
+                            className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                              sortBy === 'time'
+                                ? 'bg-primary-500/20 text-primary-400 border border-primary-500'
+                                : 'bg-dark-300 text-gray-400 hover:text-white border border-gray-700'
+                            }`}
+                          >
+                            按时间
+                          </button>
+                          <button
+                            onClick={() => setSortBy('name')}
+                            className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                              sortBy === 'name'
+                                ? 'bg-primary-500/20 text-primary-400 border border-primary-500'
+                                : 'bg-dark-300 text-gray-400 hover:text-white border border-gray-700'
+                            }`}
+                          >
+                            按名称
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* 排序顺序 */}
+                      <div className="sm:w-48">
+                        <label className="block text-gray-400 text-sm mb-2">排序顺序</label>
+                        <button
+                          onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-dark-300 border border-gray-700 rounded-lg text-white hover:bg-dark-400 transition-colors"
+                        >
+                          <ArrowUpDown className="w-4 h-4" />
+                          {sortOrder === 'asc' ? '升序' : '降序'}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* 筛选结果统计 */}
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-400">
+                        显示 {getFilteredAndSortedWorks().length} / {worksList.length} 个作品
+                      </span>
+                    </div>
+                  </div>
+                )}
 
                 <div className="overflow-x-auto">
                   <table className="w-full">
@@ -735,7 +921,7 @@ export default function Admin() {
                       </tr>
                     </thead>
                     <tbody>
-                      {worksList.map((work) => (
+                      {getFilteredAndSortedWorks().map((work) => (
                         <tr key={work.id} className="border-b border-gray-800">
                           <td className="py-3 px-4">
                             <span className="text-white font-medium">{work.title}</span>

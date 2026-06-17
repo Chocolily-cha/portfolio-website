@@ -12,14 +12,15 @@ export default function WorkCard({ work, onShare }: WorkCardProps) {
 
   return (
     <div className="group bg-dark-100 rounded-2xl overflow-hidden card-hover">
-      <div className="relative aspect-video overflow-hidden">
+      <div className="relative aspect-video overflow-hidden bg-white">
         {work.media[0]?.type === 'video' ? (
           <div className="relative w-full h-full">
             <img
               src={thumbnail}
               alt={work.title}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-contain"
               loading="lazy"
+              style={{ backgroundColor: '#FFFFFF' }}
             />
             {/* 播放按钮覆盖层 - 始终显示在视频缩略图上 */}
             <Link
@@ -46,8 +47,9 @@ export default function WorkCard({ work, onShare }: WorkCardProps) {
             <img
               src={thumbnail}
               alt={work.title}
-              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+              className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-500"
               loading="lazy"
+              style={{ backgroundColor: '#FFFFFF' }}
             />
           </Link>
         )}
