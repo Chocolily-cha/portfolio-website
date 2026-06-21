@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams } from 'react-router-dom'
 import { SearchFilters, Work, CategoryType } from '../types'
 import { getCategories, searchWorks, getSortedWorksByCategory } from '../data/storage'
+import { preloadImages } from '../hooks/useLazyLoad'
 import WorkCard from '../components/WorkCard'
 import SearchFiltersComponent from '../components/SearchFilters'
 import ShareModal from '../components/ShareModal'
@@ -17,6 +18,8 @@ export default function Gallery() {
   const [shareModalOpen, setShareModalOpen] = useState(false)
   const [selectedWork, setSelectedWork] = useState<Work | null>(null)
   const [categories, setCategories] = useState(getCategories())
+  const lastPreloadedIndex = useRef<number>(0)
+  const preloadedUrls = useRef<Set<string>>(new Set())
 
   // 监听 storage 变化
   useEffect(() => {
@@ -57,6 +60,53 @@ export default function Gallery() {
   };
 
   const filteredWorks = getWorksForDisplay();
+  
+  // 图片预加载优化 - 滚动时预加载即将可见的图片
+  useEffect(() => {
+    const handleScroll = () => {
+      // 获取视口高度
+      const viewportHeight = window.innerHeight;
+      
+      // 找出即将进入视口的图片
+      const urlsToPreload: string[] = [];
+      
+      filteredWorks.forEach((work, index) => {
+        if (index < lastPreloadedIndex.current + 6) {
+          const imageUrl = work.media[0]?.thumbnail || work.media[0]?.url;
+          if (imageUrl && !preloadedUrls.current.has(imageUrl)) {
+            urlsToPreload.push(imageUrl);
+            preloadedUrls.current.add(imageUrl);
+          }
+        }
+      });
+      
+      // 如果有待预加载的图片，启动预加载
+      if (urlsToPreload.length > 0) {
+        preloadImages(urlsToPreload).catch(err => {
+          console.warn('批量预加载失败:', err);
+        });
+      }
+      
+      // 更新已预加载的索引
+      lastPreloadedIndex.current = Math.min(lastPreloadedIndex.current + 6, filteredWorks.length);
+    };
+    
+    // 初始加载时预加载前几张图片
+    handleScroll();
+    
+    // 添加滚动监听
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, [filteredWorks]);
+  
+  // 重置预加载状态当作品列表变化时
+  useEffect(() => {
+    lastPreloadedIndex.current = 0;
+    preloadedUrls.current.clear();
+  }, [filters]);
 
   return (
     <div className="min-h-screen py-8">

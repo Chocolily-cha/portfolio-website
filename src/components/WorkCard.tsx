@@ -11,19 +11,30 @@ interface WorkCardProps {
 export default function WorkCard({ work, onShare }: WorkCardProps) {
   // 优先使用缩略图，如果缩略图不可用则使用原图
   const primaryUrl = work.media[0]?.thumbnail || work.media[0]?.url
-  const { imageSrc, isLoading } = useLazyImage(primaryUrl, {
-    placeholder: '',
+  const { imageSrc, isLoading, hasError, containerRef } = useLazyImage(primaryUrl, {
     triggerOnce: true,
-    rootMargin: '100px'
+    rootMargin: '200px' // 提前 200px 开始加载
   })
 
   return (
     <div className="group bg-dark-100 rounded-2xl overflow-hidden card-hover">
-      <div className="relative aspect-video overflow-hidden bg-white">
+      <div ref={containerRef} className="relative aspect-video overflow-hidden bg-white">
         {/* 加载占位符 */}
         {isLoading && (
           <div className="absolute inset-0 flex items-center justify-center bg-dark-200 animate-pulse">
             <div className="w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
+          </div>
+        )}
+        
+        {/* 错误提示 */}
+        {hasError && !imageSrc && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-dark-200 text-gray-500">
+            <div className="w-12 h-12 mb-2 rounded-full bg-dark-300 flex items-center justify-center">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <span className="text-sm">图片加载失败</span>
           </div>
         )}
         

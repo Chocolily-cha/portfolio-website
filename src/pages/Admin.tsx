@@ -324,20 +324,37 @@ export default function Admin() {
     }
   };
 
-  // 生成缩略图函数
+  // 生成缩略图函数 - 使用 Base64 编码以确保持久化
   const generateThumbnail = async (file: File): Promise<string> => {
     try {
       const thumbnail = await compressImage(file, thumbnailCompressionOptions);
-      const thumbnailUrl = URL.createObjectURL(thumbnail);
-      // 追踪对象 URL 以便后续清理
-      objectUrlsRef.current.push(thumbnailUrl);
-      return thumbnailUrl;
+      
+      // 使用 FileReader 转换为 Base64，确保跨会话可用
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          resolve(reader.result as string);
+        };
+        reader.onerror = () => {
+          console.error('Base64 转换失败');
+          reject(new Error('Base64 转换失败'));
+        };
+        reader.readAsDataURL(thumbnail);
+      });
     } catch (error) {
       console.error('缩略图生成失败:', error);
-      // 缩略图生成失败时返回原图的 URL
-      const originalUrl = URL.createObjectURL(file);
-      objectUrlsRef.current.push(originalUrl);
-      return originalUrl;
+      // 缩略图生成失败时返回原图的 Base64
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          resolve(reader.result as string);
+        };
+        reader.onerror = () => {
+          // 如果所有方法都失败，返回空字符串
+          resolve('');
+        };
+        reader.readAsDataURL(file);
+      });
     }
   };
 
@@ -416,10 +433,19 @@ export default function Admin() {
             console.log(`图片压缩成功！压缩比例: ${compressionRatio}%, 原始大小: ${(file.size / 1024 / 1024).toFixed(2)}MB, 压缩后: ${(processedFile.size / 1024 / 1024).toFixed(2)}MB`);
           }
           
-          // 创建对象 URL（比 Base64 更节省内存）
-          const objectUrl = URL.createObjectURL(processedFile);
-          // 追踪对象 URL 以便后续清理
-          objectUrlsRef.current.push(objectUrl);
+          // 将文件转换为 Base64（确保跨会话持久化）
+          const base64Url = await new Promise<string>((resolve) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = () => {
+              console.error('Base64 转换失败');
+              // 如果 Base64 失败，使用 Blob URL 作为备选
+              const fallbackUrl = URL.createObjectURL(processedFile);
+              objectUrlsRef.current.push(fallbackUrl);
+              resolve(fallbackUrl);
+            };
+            reader.readAsDataURL(processedFile);
+          });
           
           // 后台同步到 IndexedDB（不影响主流程）
           (async () => {
@@ -427,15 +453,6 @@ export default function Admin() {
               // 保存到 IndexedDB
               await saveMediaToIndexedDB(mediaId, processedFile, processedFile.type);
               console.log(`媒体文件已保存到 IndexedDB: ${mediaId}`);
-              
-              // 如果是图片，保存缩略图
-              if (isImage && processedFile.type.startsWith('image/')) {
-                // 生成并保存缩略图
-                const thumbnailBlob = await compressImage(processedFile, thumbnailCompressionOptions);
-                const thumbnailId = `thumb-${Date.now()}`;
-                await saveThumbnailToIndexedDB(thumbnailId, thumbnailBlob, mediaId);
-                console.log(`缩略图已保存到 IndexedDB: ${thumbnailId}`);
-              }
             } catch (error) {
               console.error('后台保存到 IndexedDB 失败:', error);
             }
@@ -469,7 +486,7 @@ export default function Admin() {
           }, 3000);
 
           resolve({
-            url: objectUrl,
+            url: base64Url,
             thumbnail: thumbnailUrl
           });
           
