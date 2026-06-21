@@ -11,10 +11,21 @@ interface WorkCardProps {
 export default function WorkCard({ work, onShare }: WorkCardProps) {
   // 优先使用缩略图，如果缩略图不可用则使用原图
   const primaryUrl = work.media[0]?.thumbnail || work.media[0]?.url
-  const { imageSrc, isLoading, hasError, containerRef } = useLazyImage(primaryUrl, {
-    triggerOnce: true,
-    rootMargin: '200px' // 提前 200px 开始加载
-  })
+  
+  // 检查 URL 是否有效
+  const isValidUrl = primaryUrl && (
+    primaryUrl.startsWith('http://') || 
+    primaryUrl.startsWith('https://') || 
+    primaryUrl.startsWith('data:')
+  );
+  
+  const { imageSrc, isLoading, hasError, containerRef } = useLazyImage(
+    isValidUrl ? primaryUrl : '', 
+    {
+      triggerOnce: true,
+      rootMargin: '200px' // 提前 200px 开始加载
+    }
+  )
 
   return (
     <div className="group bg-dark-100 rounded-2xl overflow-hidden card-hover">
