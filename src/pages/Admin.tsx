@@ -1,9 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
 import imageCompression from 'browser-image-compression';
 import { Lock, Unlock, Plus, Trash2, Edit3, Save, X, Eye, EyeOff, List, Layout, Image, Video, Sparkles, Box, Grid3x3, Palette, Camera, MoreHorizontal, Layers, Star, Wand2, Code, Palette as Paint, Brush, Zap, Globe, Music, Gamepad2, Award, Crown, Feather, Heart, Sun, Moon, Coffee, BookOpen, PenTool, Upload, RefreshCw, Check, AlertCircle, RotateCcw, Search, Filter, ArrowUpDown, X as CloseIcon, Tag as TagIcon, History, TrendingUp, Clock, AlertTriangle, CheckCircle } from 'lucide-react';
-import { getCategories, getWorks, saveCategories, saveWorks, resetToDefault, getAllTags, validateTag, addOrUpdateTagMetadata, batchAddTagsMetadata, getTagMetadata, getTagSyncLogs, getTagStatistics, clearTagSyncLogs, getSortedWorksByCategory, moveWorkInCategory, deleteCategorySortConfig, getCategorySortConfig } from '../data/storage';
-import { saveMediaToIndexedDB, saveThumbnailToIndexedDB, getMediaFromIndexedDB, mediaStorage } from '../data/mediaStorage';
-import { Category, Work, CategoryType, TechnicalDetail, TagMetadata, TagSyncLog, TagValidationResult } from '../types';
+import { getCategories, getWorks, saveCategories, saveWorks, resetToDefault, getAllTags, validateTag, addOrUpdateTagMetadata, batchAddTagsMetadata, getTagSyncLogs, getTagStatistics, clearTagSyncLogs, getSortedWorksByCategory, moveWorkInCategory, deleteCategorySortConfig, getCategorySortConfig } from '../data/storage';
+import { saveMediaToIndexedDB, saveThumbnailToIndexedDB } from '../data/mediaStorage';
+import { Category, Work, CategoryType, TechnicalDetail, TagValidationResult } from '../types';
 
 // 文件上传状态类型
 interface UploadState {
@@ -388,7 +388,7 @@ export default function Admin() {
 
       // 模拟上传进度
       let progress = 0;
-      let progressInterval: NodeJS.Timeout | null = null;
+      let progressInterval: ReturnType<typeof setInterval> | null = null;
       
       progressInterval = setInterval(() => {
         if (!progressInterval) return; // 防止重复执行

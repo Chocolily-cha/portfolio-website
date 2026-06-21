@@ -162,7 +162,7 @@ export const addTagSyncLog = (log: Omit<TagSyncLog, 'id' | 'timestamp'>): void =
 // 验证标签格式和相关性
 export const validateTag = (
   tagName: string,
-  category: CategoryType,
+  _category: CategoryType,
   existingTags: string[]
 ): TagValidationResult => {
   const result: TagValidationResult = {
@@ -474,7 +474,7 @@ export const moveWorkInCategory = (categoryId: string, workId: string, direction
   const config = getCategorySortConfig(categoryId);
   if (!config || !config.useCustomSort) {
     // 如果没有自定义排序配置，先创建一个
-    const works = getWorksByCategory(categoryId);
+    const works = getWorks().filter(w => w.category === categoryId);
     const workOrder = works.map(w => w.id);
     updateCategorySortConfig(categoryId, workOrder, true);
     return moveWorkInCategory(categoryId, workId, direction);
@@ -513,7 +513,7 @@ export const moveWorkInCategory = (categoryId: string, workId: string, direction
 export const swapWorksInCategory = (categoryId: string, workId1: string, workId2: string): void => {
   const config = getCategorySortConfig(categoryId);
   if (!config || !config.useCustomSort) {
-    const works = getWorksByCategory(categoryId);
+    const works = getWorks().filter(w => w.category === categoryId);
     const workOrder = works.map(w => w.id);
     updateCategorySortConfig(categoryId, workOrder, true);
     return swapWorksInCategory(categoryId, workId1, workId2);

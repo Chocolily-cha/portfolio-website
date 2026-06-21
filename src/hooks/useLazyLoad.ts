@@ -81,10 +81,10 @@ export const useLazyImage = (
         setError(null);
       };
       
-      img.onerror = (err) => {
-        setError(err as Error);
+      img.onerror = () => {
+        setError(new Error('图片加载失败'));
         setIsLoading(false);
-        console.error('图片加载失败:', src, err);
+        console.error('图片加载失败:', src);
       };
       
       img.src = src;
@@ -111,7 +111,7 @@ export const useBatchLazyImages = (
   
   // 初始化 refs
   useEffect(() => {
-    urls.forEach((url, index) => {
+    urls.forEach((url) => {
       if (!refs.current.has(url)) {
         refs.current.set(url, { current: null });
       }
