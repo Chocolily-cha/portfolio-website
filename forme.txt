@@ -1,0 +1,3 @@
+- 访问 Vercel Dashboard 查看部署状态： https://app.netlify.com/teams/chocolily-cha/projects
+- 访问您的网站确认更改已生效
+- 在 GitHub 仓库查看提交历史： https://github.com/Chocolily-cha/portfolio-website/commits/main

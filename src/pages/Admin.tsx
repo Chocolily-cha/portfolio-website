@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
+import imageCompression from 'browser-image-compression';
 import { Lock, Unlock, Plus, Trash2, Edit3, Save, X, Eye, EyeOff, List, Layout, Image, Video, Sparkles, Box, Grid3x3, Palette, Camera, MoreHorizontal, Layers, Star, Wand2, Code, Palette as Paint, Brush, Zap, Globe, Music, Gamepad2, Award, Crown, Feather, Heart, Sun, Moon, Coffee, BookOpen, PenTool, Upload, RefreshCw, Check, AlertCircle, RotateCcw, Search, Filter, ArrowUpDown, X as CloseIcon, Tag as TagIcon, History, TrendingUp, Clock, AlertTriangle, CheckCircle } from 'lucide-react';
 import { getCategories, getWorks, saveCategories, saveWorks, resetToDefault, getAllTags, validateTag, addOrUpdateTagMetadata, batchAddTagsMetadata, getTagMetadata, getTagSyncLogs, getTagStatistics, clearTagSyncLogs } from '../data/storage';
+import { saveMediaToIndexedDB, saveThumbnailToIndexedDB, getMediaFromIndexedDB, mediaStorage } from '../data/mediaStorage';
 import { Category, Work, CategoryType, TechnicalDetail, TagMetadata, TagSyncLog, TagValidationResult } from '../types';
 
 // 文件上传状态类型
@@ -83,6 +85,22 @@ export default function Admin() {
     setAvailableTags(getAllTags());
   }, [worksList]);
 
+  // 组件卸载时清理所有对象 URL，防止内存泄漏
+  useEffect(() => {
+    return () => {
+      // 清理所有创建的对象 URL
+      objectUrlsRef.current.forEach(url => {
+        try {
+          URL.revokeObjectURL(url);
+        } catch (error) {
+          console.warn('清理对象 URL 时出错:', error);
+        }
+      });
+      // 清空追踪列表
+      objectUrlsRef.current = [];
+    };
+  }, []);
+
   // 文件上传相关状态
   const [uploadState, setUploadState] = useState<UploadState>({
     isUploading: false,
@@ -101,6 +119,9 @@ export default function Admin() {
   const [showReplaceConfirm, setShowReplaceConfirm] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const replaceFileInputRef = useRef<HTMLInputElement>(null);
+  
+  // 追踪所有创建的对象 URL，防止内存泄漏
+  const objectUrlsRef = useRef<string[]>([]);
 
   // 排序和筛选状态
   const [sortBy, setSortBy] = useState<'category' | 'time' | 'name'>('time');
@@ -266,6 +287,54 @@ export default function Admin() {
     { name: 'PenTool', component: PenTool },
   ];
 
+  // 图片压缩选项
+  const imageCompressionOptions = {
+    maxSizeMB: 1, // 最大 1MB
+    maxWidthOrHeight: 1920, // 最大尺寸 1920px
+    useWebWorker: true, // 使用 Web Worker 不阻塞主线程
+    fileType: 'image/jpeg' as const, // 转换为 JPEG
+  };
+
+  // 缩略图压缩选项
+  const thumbnailCompressionOptions = {
+    maxSizeMB: 0.1, // 最大 100KB
+    maxWidthOrHeight: 400, // 缩略图尺寸 400px
+    useWebWorker: true,
+    fileType: 'image/jpeg' as const,
+  };
+
+  // 压缩图片函数
+  const compressImage = async (
+    file: File,
+    options: object = imageCompressionOptions
+  ): Promise<File> => {
+    try {
+      const compressedFile = await imageCompression(file, options);
+      return compressedFile;
+    } catch (error) {
+      console.error('图片压缩失败:', error);
+      // 压缩失败时返回原文件
+      return file;
+    }
+  };
+
+  // 生成缩略图函数
+  const generateThumbnail = async (file: File): Promise<string> => {
+    try {
+      const thumbnail = await compressImage(file, thumbnailCompressionOptions);
+      const thumbnailUrl = URL.createObjectURL(thumbnail);
+      // 追踪对象 URL 以便后续清理
+      objectUrlsRef.current.push(thumbnailUrl);
+      return thumbnailUrl;
+    } catch (error) {
+      console.error('缩略图生成失败:', error);
+      // 缩略图生成失败时返回原图的 URL
+      const originalUrl = URL.createObjectURL(file);
+      objectUrlsRef.current.push(originalUrl);
+      return originalUrl;
+    }
+  };
+
   // 获取文件类型
   const getFileType = (file: File): 'image' | 'video' | 'audio' => {
     if (file.type.startsWith('image/')) return 'image';
@@ -274,9 +343,11 @@ export default function Admin() {
     return 'image'; // 默认为图片
   };
 
-  // 文件上传处理函数
-  const handleFileUpload = async (file: File, isReplace: boolean = false): Promise<string | null> => {
+  // 文件上传处理函数 - 已修复内存泄漏
+  // 文件上传处理函数 - 已集成图片压缩
+  const handleFileUpload = async (file: File, isReplace: boolean = false): Promise<{ url: string; thumbnail?: string } | null> => {
     const setState = isReplace ? setReplaceUploadState : setUploadState;
+    const isImage = file.type.startsWith('image/');
     
     // 验证文件大小
     if (file.size > MAX_FILE_SIZE) {
@@ -295,16 +366,26 @@ export default function Admin() {
       isUploading: true,
       progress: 0,
       status: 'uploading',
-      message: '正在上传...',
+      message: isImage ? '正在压缩和上传...' : '正在上传...',
       fileName: file.name
     });
 
     return new Promise((resolve) => {
-      const reader = new FileReader();
-      
+      // 清理函数 - 防止内存泄漏
+      const cleanup = () => {
+        try {
+          clearInterval(progressInterval);
+        } catch (error) {
+          console.warn('清理资源时出错:', error);
+        }
+      };
+
       // 模拟上传进度
       let progress = 0;
-      const progressInterval = setInterval(() => {
+      let progressInterval: NodeJS.Timeout | null = null;
+      
+      progressInterval = setInterval(() => {
+        if (!progressInterval) return; // 防止重复执行
         progress += Math.random() * 15;
         if (progress > 90) progress = 90;
         setState(prev => ({
@@ -313,45 +394,96 @@ export default function Admin() {
         }));
       }, 100);
 
-      reader.onload = () => {
-        clearInterval(progressInterval);
-        const dataUrl = reader.result as string;
-        
-        setState({
-          isUploading: false,
-          progress: 100,
-          status: 'success',
-          message: '上传成功！',
-          fileName: file.name
-        });
+      // 处理文件上传
+      const processFile = async () => {
+        try {
+          let processedFile = file;
+          const mediaId = `media-${Date.now()}`;
+          
+          // 如果是图片，先进行压缩
+          if (isImage) {
+            setState(prev => ({ ...prev, message: '正在压缩图片...' }));
+            processedFile = await compressImage(file, imageCompressionOptions);
+            
+            // 计算压缩比
+            const compressionRatio = ((file.size - processedFile.size) / file.size * 100).toFixed(1);
+            console.log(`图片压缩成功！压缩比例: ${compressionRatio}%, 原始大小: ${(file.size / 1024 / 1024).toFixed(2)}MB, 压缩后: ${(processedFile.size / 1024 / 1024).toFixed(2)}MB`);
+          }
+          
+          // 创建对象 URL（比 Base64 更节省内存）
+          const objectUrl = URL.createObjectURL(processedFile);
+          // 追踪对象 URL 以便后续清理
+          objectUrlsRef.current.push(objectUrl);
+          
+          // 后台同步到 IndexedDB（不影响主流程）
+          (async () => {
+            try {
+              // 保存到 IndexedDB
+              await saveMediaToIndexedDB(mediaId, processedFile, processedFile.type);
+              console.log(`媒体文件已保存到 IndexedDB: ${mediaId}`);
+              
+              // 如果是图片，保存缩略图
+              if (isImage && processedFile.type.startsWith('image/')) {
+                // 生成并保存缩略图
+                const thumbnailBlob = await compressImage(processedFile, thumbnailCompressionOptions);
+                const thumbnailId = `thumb-${Date.now()}`;
+                await saveThumbnailToIndexedDB(thumbnailId, thumbnailBlob, mediaId);
+                console.log(`缩略图已保存到 IndexedDB: ${thumbnailId}`);
+              }
+            } catch (error) {
+              console.error('后台保存到 IndexedDB 失败:', error);
+            }
+          })();
+          
+          // 如果是图片，生成缩略图
+          let thumbnailUrl: string | undefined;
+          if (isImage) {
+            thumbnailUrl = await generateThumbnail(file);
+          }
+          
+          cleanup();
+          
+          setState({
+            isUploading: false,
+            progress: 100,
+            status: 'success',
+            message: '上传成功！',
+            fileName: file.name
+          });
 
-        // 3秒后重置状态
-        setTimeout(() => {
+          // 3秒后重置状态
+          const resetTimeout = setTimeout(() => {
+            setState({
+              isUploading: false,
+              progress: 0,
+              status: 'idle',
+              message: '',
+              fileName: ''
+            });
+          }, 3000);
+
+          resolve({
+            url: objectUrl,
+            thumbnail: thumbnailUrl
+          });
+          
+          return () => clearTimeout(resetTimeout);
+        } catch (error) {
+          cleanup();
+          console.error('文件处理失败:', error);
           setState({
             isUploading: false,
             progress: 0,
-            status: 'idle',
-            message: '',
-            fileName: ''
+            status: 'error',
+            message: '文件处理失败，请重试',
+            fileName: file.name
           });
-        }, 3000);
-
-        resolve(dataUrl);
+          resolve(null);
+        }
       };
 
-      reader.onerror = () => {
-        clearInterval(progressInterval);
-        setState({
-          isUploading: false,
-          progress: 0,
-          status: 'error',
-          message: '上传失败，请重试',
-          fileName: file.name
-        });
-        resolve(null);
-      };
-
-      reader.readAsDataURL(file);
+      // 开始处理文件
+      processFile();
     });
   };
 
@@ -360,8 +492,8 @@ export default function Admin() {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    const dataUrl = await handleFileUpload(file);
-    if (dataUrl) {
+    const result = await handleFileUpload(file);
+    if (result) {
       const fileType = getFileType(file);
       setNewWork({
         ...newWork,
@@ -370,7 +502,8 @@ export default function Admin() {
           {
             id: `media-${Date.now()}`,
             type: fileType,
-            url: dataUrl,
+            url: result.url,
+            thumbnail: result.thumbnail,
           },
         ],
       });
@@ -386,8 +519,8 @@ export default function Admin() {
     const file = event.target.files?.[0];
     if (!file || !editingWork) return;
 
-    const dataUrl = await handleFileUpload(file, true);
-    if (dataUrl) {
+    const result = await handleFileUpload(file, true);
+    if (result) {
       const fileType = getFileType(file);
       setEditingWork({
         ...editingWork,
@@ -395,7 +528,8 @@ export default function Admin() {
           {
             id: `media-${Date.now()}`,
             type: fileType,
-            url: dataUrl,
+            url: result.url,
+            thumbnail: result.thumbnail,
           },
         ],
       });

@@ -1,6 +1,7 @@
 import { Eye, Heart, Share2 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Work } from '../types'
+import { useLazyImage } from '../hooks/useLazyLoad'
 
 interface WorkCardProps {
   work: Work
@@ -8,20 +9,34 @@ interface WorkCardProps {
 }
 
 export default function WorkCard({ work, onShare }: WorkCardProps) {
-  const thumbnail = work.media[0]?.url || work.media[0]?.thumbnail
+  // 优先使用缩略图，如果缩略图不可用则使用原图
+  const primaryUrl = work.media[0]?.thumbnail || work.media[0]?.url
+  const { imageSrc, isLoading } = useLazyImage(primaryUrl, {
+    placeholder: '',
+    triggerOnce: true,
+    rootMargin: '100px'
+  })
 
   return (
     <div className="group bg-dark-100 rounded-2xl overflow-hidden card-hover">
       <div className="relative aspect-video overflow-hidden bg-white">
+        {/* 加载占位符 */}
+        {isLoading && (
+          <div className="absolute inset-0 flex items-center justify-center bg-dark-200 animate-pulse">
+            <div className="w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
+          </div>
+        )}
+        
         {work.media[0]?.type === 'video' ? (
           <div className="relative w-full h-full">
-            <img
-              src={thumbnail}
-              alt={work.title}
-              className="w-full h-full object-contain"
-              loading="lazy"
-              style={{ backgroundColor: '#FFFFFF' }}
-            />
+            {imageSrc && (
+              <img
+                src={imageSrc}
+                alt={work.title}
+                className="w-full h-full object-contain"
+                style={{ backgroundColor: '#FFFFFF' }}
+              />
+            )}
             {/* 播放按钮覆盖层 - 始终显示在视频缩略图上 */}
             <Link
               to={`/detail/${work.id}`}
@@ -44,13 +59,14 @@ export default function WorkCard({ work, onShare }: WorkCardProps) {
           </div>
         ) : (
           <Link to={`/detail/${work.id}`}>
-            <img
-              src={thumbnail}
-              alt={work.title}
-              className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-500"
-              loading="lazy"
-              style={{ backgroundColor: '#FFFFFF' }}
-            />
+            {imageSrc && (
+              <img
+                src={imageSrc}
+                alt={work.title}
+                className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-500"
+                style={{ backgroundColor: '#FFFFFF' }}
+              />
+            )}
           </Link>
         )}
         {/* 底部操作栏 - 悬停显示 */}
