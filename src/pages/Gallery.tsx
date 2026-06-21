@@ -61,46 +61,6 @@ export default function Gallery() {
 
   const filteredWorks = getWorksForDisplay();
   
-  #region debug-point H4
-  // 调试日志: 检查作品数据中的 media 字段
-  useEffect(() => {
-    const reportLog = async () => {
-      try {
-        const worksData = filteredWorks.slice(0, 3).map(work => ({
-          id: work.id,
-          title: work.title,
-          hasMedia: work.media && work.media.length > 0,
-          mediaCount: work.media?.length || 0,
-          firstMedia: work.media?.[0] ? {
-            hasUrl: !!work.media[0].url,
-            urlType: work.media[0].url ? (work.media[0].url.startsWith('data:') ? 'base64' : work.media[0].url.startsWith('blob:') ? 'blob' : 'url') : 'null',
-            urlLength: work.media[0].url?.length || 0,
-            hasThumbnail: !!work.media[0].thumbnail,
-            thumbnailType: work.media[0].thumbnail ? (work.media[0].thumbnail.startsWith('data:') ? 'base64' : 'url') : 'null',
-            thumbnailLength: work.media[0].thumbnail?.length || 0
-          } : null
-        }));
-        
-        await fetch('http://127.0.0.1:9527/event', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            hypothesisId: 'H4',
-            runId: 'pre-fix',
-            timestamp: new Date().toISOString(),
-            event: 'works_data_check',
-            data: { 
-              totalWorks: filteredWorks.length,
-              sampleWorks: worksData
-            }
-          })
-        });
-      } catch (e) {}
-    };
-    reportLog();
-  }, [filteredWorks]);
-  #endregion
-  
   // 图片预加载优化 - 滚动时预加载即将可见的图片
   useEffect(() => {
     const handleScroll = () => {

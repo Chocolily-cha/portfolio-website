@@ -128,32 +128,6 @@ export const useLazyImage = (
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [isVisible, setIsVisible] = useState<boolean>(false);
 
-  #region debug-point H2-H5
-  // 调试日志: 检查传入的 src 参数
-  useEffect(() => {
-    const reportLog = async () => {
-      try {
-        await fetch('http://127.0.0.1:9527/event', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            hypothesisId: 'H3',
-            runId: 'pre-fix',
-            timestamp: new Date().toISOString(),
-            event: 'useLazyImage_init',
-            data: {
-              src: src ? src.substring(0, 100) + '...' : 'EMPTY',
-              srcLength: src?.length || 0,
-              srcType: src ? (src.startsWith('data:') ? 'base64' : src.startsWith('blob:') ? 'blob' : 'url') : 'null'
-            }
-          })
-        });
-      } catch (e) {}
-    };
-    reportLog();
-  }, [src]);
-  #endregion
-  
   // 使用 IntersectionObserver 检测元素是否可见
   useEffect(() => {
     const element = containerRef.current;
@@ -163,24 +137,6 @@ export const useLazyImage = (
       ([entry]) => {
         if (entry.isIntersecting) {
           setIsVisible(true);
-          #region debug-point H2
-          // 调试日志: IntersectionObserver 触发
-          (async () => {
-            try {
-              await fetch('http://127.0.0.1:9527/event', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  hypothesisId: 'H2',
-                  runId: 'pre-fix',
-                  timestamp: new Date().toISOString(),
-                  event: 'intersection_triggered',
-                  data: { isVisible: true }
-                })
-              });
-            } catch (e) {}
-          })();
-          #endregion
           // 一旦可见就停止观察（单次加载）
           if (lazyOptions.triggerOnce !== false) {
             observer.disconnect();
@@ -191,7 +147,7 @@ export const useLazyImage = (
       },
       {
         threshold: lazyOptions.threshold || 0.1,
-        rootMargin: lazyOptions.rootMargin || '100px', // 提前 100px 开始加载
+        rootMargin: lazyOptions.rootMargin || '200px', // 提前 200px 开始加载
       }
     );
     
@@ -217,48 +173,12 @@ export const useLazyImage = (
       setImageSrc(src);
       setIsLoading(false);
       setHasError(false);
-      #region debug-point H5
-      // 调试日志: 图片加载成功
-      (async () => {
-        try {
-          await fetch('http://127.0.0.1:9527/event', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              hypothesisId: 'H5',
-              runId: 'pre-fix',
-              timestamp: new Date().toISOString(),
-              event: 'image_loaded',
-              data: { success: true, srcLength: src?.length }
-            })
-          });
-        } catch (e) {}
-      })();
-      #endregion
     };
     
     img.onerror = () => {
       console.error('图片加载失败:', src);
       setIsLoading(false);
       setHasError(true);
-      #region debug-point H5
-      // 调试日志: 图片加载失败
-      (async () => {
-        try {
-          await fetch('http://127.0.0.1:9527/event', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              hypothesisId: 'H5',
-              runId: 'pre-fix',
-              timestamp: new Date().toISOString(),
-              event: 'image_load_error',
-              data: { success: false, srcPreview: src ? src.substring(0, 100) : 'null' }
-            })
-          });
-        } catch (e) {}
-      })();
-      #endregion
       // 尝试使用原始 URL 作为降级方案
       if (src.startsWith('data:')) {
         setImageSrc(src);
