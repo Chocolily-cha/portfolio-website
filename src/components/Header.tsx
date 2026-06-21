@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Menu, Search, User } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
 import { getCategories } from '../data/storage'
+import { checkAdminAccess } from '../utils/urlUtils'
 
 interface HeaderProps {
   onToggleSidebar: () => void
@@ -89,13 +90,16 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
             >
               <Search className="w-5 h-5" />
             </button>
-            <Link
-              to="/admin"
-              className="hidden sm:flex items-center gap-2 px-4 py-2 bg-dark-100 hover:bg-dark-200 rounded-lg text-sm text-gray-300 transition-colors"
-            >
-              <User className="w-4 h-4" />
-              <span>管理</span>
-            </Link>
+            {/* 只有管理员权限才能看到管理链接 */}
+            {checkAdminAccess() && (
+              <Link
+                to="/admin"
+                className="hidden sm:flex items-center gap-2 px-4 py-2 bg-dark-100 hover:bg-dark-200 rounded-lg text-sm text-gray-300 transition-colors"
+              >
+                <User className="w-4 h-4" />
+                <span>管理</span>
+              </Link>
+            )}
             <button
               onClick={onToggleSidebar}
               className="lg:hidden p-2 text-gray-400 hover:text-white hover:bg-dark-100 rounded-lg transition-colors"

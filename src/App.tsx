@@ -3,6 +3,7 @@ import { Routes, Route } from 'react-router-dom'
 import Header from './components/Header'
 import Footer from './components/Footer'
 import Sidebar from './components/Sidebar'
+import ProtectedRoute from './components/ProtectedRoute'
 import Home from './pages/Home'
 import Gallery from './pages/Gallery'
 import Detail from './pages/Detail'
@@ -22,7 +23,10 @@ function App() {
           <Route path="/gallery/:category" element={<Gallery />} />
           <Route path="/detail/:id" element={<Detail />} />
           <Route path="/contact" element={<Contact />} />
-          <Route path="/admin" element={<Admin />} />
+          {/* 保护的管理路由 */}
+          <Route element={<ProtectedRoute />}>
+            <Route path="/admin" element={<Admin />} />
+          </Route>
         </Routes>
       </main>
       <Footer />

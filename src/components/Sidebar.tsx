@@ -1,6 +1,7 @@
 import { X } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
 import { getCategories } from '../data/storage'
+import { checkAdminAccess } from '../utils/urlUtils'
 
 interface SidebarProps {
   isOpen: boolean
@@ -77,13 +78,16 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
           >
             联系我
           </Link>
-          <Link
-            to="/admin"
-            onClick={onClose}
-            className="block px-4 py-3 rounded-lg text-sm font-medium text-gray-400 hover:text-white hover:bg-dark-300 transition-all"
-          >
-            管理后台
-          </Link>
+          {/* 只有管理员权限才能看到管理链接 */}
+          {checkAdminAccess() && (
+            <Link
+              to="/admin"
+              onClick={onClose}
+              className="block px-4 py-3 rounded-lg text-sm font-medium text-gray-400 hover:text-white hover:bg-dark-300 transition-all"
+            >
+              管理后台
+            </Link>
+          )}
         </nav>
       </div>
     </>
