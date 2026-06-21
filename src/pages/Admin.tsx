@@ -388,7 +388,7 @@ export default function Admin() {
 
       // 模拟上传进度
       let progress = 0;
-      let progressInterval: number | null = null;
+      let progressInterval: number | undefined = undefined;
       
       progressInterval = setInterval(() => {
         if (!progressInterval) return; // 防止重复执行
