@@ -10,6 +10,7 @@ export interface Work {
   technicalDetails: TechnicalDetail[]
   views: number
   likes: number
+  sortOrder?: number // 自定义排序字段
 }
 
 export interface Media {

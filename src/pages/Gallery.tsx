@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
-import { SearchFilters, Work } from '../types'
-import { getCategories, searchWorks } from '../data/storage'
+import { SearchFilters, Work, CategoryType } from '../types'
+import { getCategories, searchWorks, getSortedWorksByCategory } from '../data/storage'
 import WorkCard from '../components/WorkCard'
 import SearchFiltersComponent from '../components/SearchFilters'
 import ShareModal from '../components/ShareModal'
@@ -38,12 +38,25 @@ export default function Gallery() {
     setShareModalOpen(true)
   }
 
-  const filteredWorks = searchWorks(
-    filters.keyword,
-    filters.category === 'all' ? (category as SearchFilters['category']) : filters.category,
-    filters.tags,
-    filters.sortBy
-  )
+  // 根据分类获取排序后的作品
+  const getWorksForDisplay = (): Work[] => {
+    const targetCategory = filters.category === 'all' ? category : filters.category;
+    
+    // 如果有具体分类且没有其他筛选条件，使用自定义排序
+    if (targetCategory && targetCategory !== 'all' && !filters.keyword && filters.tags.length === 0) {
+      return getSortedWorksByCategory(targetCategory as CategoryType);
+    }
+    
+    // 否则使用搜索函数
+    return searchWorks(
+      filters.keyword,
+      targetCategory as SearchFilters['category'] || 'all',
+      filters.tags,
+      filters.sortBy
+    );
+  };
+
+  const filteredWorks = getWorksForDisplay();
 
   return (
     <div className="min-h-screen py-8">

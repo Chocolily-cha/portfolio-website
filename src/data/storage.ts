@@ -6,8 +6,16 @@ const STORAGE_KEYS = {
   CATEGORIES: 'portfolio_categories',
   WORKS: 'portfolio_works',
   TAG_METADATA: 'portfolio_tag_metadata',
-  TAG_SYNC_LOGS: 'portfolio_tag_sync_logs'
+  TAG_SYNC_LOGS: 'portfolio_tag_sync_logs',
+  CATEGORY_SORT_CONFIG: 'portfolio_category_sort_config'
 };
+
+// 分类排序配置接口
+interface CategorySortConfig {
+  categoryId: string;
+  useCustomSort: boolean;
+  workOrder: string[]; // 作品ID的排序顺序
+}
 
 // 从 localStorage 读取数据
 export const loadFromStorage = <T,>(key: string, defaultValue: T): T => {
@@ -390,6 +398,135 @@ export const getTagStatistics = (): {
 // 清除标签同步日志
 export const clearTagSyncLogs = (): void => {
   saveToStorage(STORAGE_KEYS.TAG_SYNC_LOGS, []);
+};
+
+// ==================== 分类排序配置 ====================
+
+// 获取所有分类排序配置
+export const getCategorySortConfigs = (): CategorySortConfig[] => {
+  return loadFromStorage(STORAGE_KEYS.CATEGORY_SORT_CONFIG, []);
+};
+
+// 保存分类排序配置
+export const saveCategorySortConfigs = (configs: CategorySortConfig[]): void => {
+  saveToStorage(STORAGE_KEYS.CATEGORY_SORT_CONFIG, configs);
+};
+
+// 获取指定分类的排序配置
+export const getCategorySortConfig = (categoryId: string): CategorySortConfig | undefined => {
+  const configs = getCategorySortConfigs();
+  return configs.find(c => c.categoryId === categoryId);
+};
+
+// 更新或创建分类排序配置
+export const updateCategorySortConfig = (categoryId: string, workOrder: string[], useCustomSort: boolean = true): void => {
+  const configs = getCategorySortConfigs();
+  const existingIndex = configs.findIndex(c => c.categoryId === categoryId);
+  
+  const newConfig: CategorySortConfig = {
+    categoryId,
+    useCustomSort,
+    workOrder
+  };
+  
+  if (existingIndex !== -1) {
+    configs[existingIndex] = newConfig;
+  } else {
+    configs.push(newConfig);
+  }
+  
+  saveCategorySortConfigs(configs);
+};
+
+// 删除分类排序配置（恢复默认排序）
+export const deleteCategorySortConfig = (categoryId: string): void => {
+  const configs = getCategorySortConfigs().filter(c => c.categoryId !== categoryId);
+  saveCategorySortConfigs(configs);
+};
+
+// 根据分类ID获取排序后的作品列表
+export const getSortedWorksByCategory = (categoryId: CategoryType): Work[] => {
+  const works = getWorksByCategory(categoryId);
+  const config = getCategorySortConfig(categoryId);
+  
+  if (config && config.useCustomSort && config.workOrder.length > 0) {
+    // 使用自定义排序
+    return works.sort((a, b) => {
+      const indexA = config.workOrder.indexOf(a.id);
+      const indexB = config.workOrder.indexOf(b.id);
+      
+      // 如果作品不在排序列表中，放在最后
+      if (indexA === -1) return 1;
+      if (indexB === -1) return -1;
+      
+      return indexA - indexB;
+    });
+  } else {
+    // 默认按时间降序排序（最新的在前）
+    return [...works].sort((a, b) => {
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
+  }
+};
+
+// 移动作品排序位置
+export const moveWorkInCategory = (categoryId: string, workId: string, direction: 'up' | 'down' | 'top' | 'bottom'): void => {
+  const config = getCategorySortConfig(categoryId);
+  if (!config || !config.useCustomSort) {
+    // 如果没有自定义排序配置，先创建一个
+    const works = getWorksByCategory(categoryId);
+    const workOrder = works.map(w => w.id);
+    updateCategorySortConfig(categoryId, workOrder, true);
+    return moveWorkInCategory(categoryId, workId, direction);
+  }
+  
+  const workOrder = [...config.workOrder];
+  const currentIndex = workOrder.indexOf(workId);
+  
+  if (currentIndex === -1) return;
+  
+  let newIndex = currentIndex;
+  
+  switch (direction) {
+    case 'up':
+      newIndex = Math.max(0, currentIndex - 1);
+      break;
+    case 'down':
+      newIndex = Math.min(workOrder.length - 1, currentIndex + 1);
+      break;
+    case 'top':
+      newIndex = 0;
+      break;
+    case 'bottom':
+      newIndex = workOrder.length - 1;
+      break;
+  }
+  
+  if (newIndex !== currentIndex) {
+    workOrder.splice(currentIndex, 1);
+    workOrder.splice(newIndex, 0, workId);
+    updateCategorySortConfig(categoryId, workOrder, true);
+  }
+};
+
+// 交换两个作品的位置
+export const swapWorksInCategory = (categoryId: string, workId1: string, workId2: string): void => {
+  const config = getCategorySortConfig(categoryId);
+  if (!config || !config.useCustomSort) {
+    const works = getWorksByCategory(categoryId);
+    const workOrder = works.map(w => w.id);
+    updateCategorySortConfig(categoryId, workOrder, true);
+    return swapWorksInCategory(categoryId, workId1, workId2);
+  }
+  
+  const workOrder = [...config.workOrder];
+  const index1 = workOrder.indexOf(workId1);
+  const index2 = workOrder.indexOf(workId2);
+  
+  if (index1 === -1 || index2 === -1) return;
+  
+  [workOrder[index1], workOrder[index2]] = [workOrder[index2], workOrder[index1]];
+  updateCategorySortConfig(categoryId, workOrder, true);
 };
 
 // 导出存储键名供其他组件使用

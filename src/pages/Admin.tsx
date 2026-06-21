@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import imageCompression from 'browser-image-compression';
 import { Lock, Unlock, Plus, Trash2, Edit3, Save, X, Eye, EyeOff, List, Layout, Image, Video, Sparkles, Box, Grid3x3, Palette, Camera, MoreHorizontal, Layers, Star, Wand2, Code, Palette as Paint, Brush, Zap, Globe, Music, Gamepad2, Award, Crown, Feather, Heart, Sun, Moon, Coffee, BookOpen, PenTool, Upload, RefreshCw, Check, AlertCircle, RotateCcw, Search, Filter, ArrowUpDown, X as CloseIcon, Tag as TagIcon, History, TrendingUp, Clock, AlertTriangle, CheckCircle } from 'lucide-react';
-import { getCategories, getWorks, saveCategories, saveWorks, resetToDefault, getAllTags, validateTag, addOrUpdateTagMetadata, batchAddTagsMetadata, getTagMetadata, getTagSyncLogs, getTagStatistics, clearTagSyncLogs } from '../data/storage';
+import { getCategories, getWorks, saveCategories, saveWorks, resetToDefault, getAllTags, validateTag, addOrUpdateTagMetadata, batchAddTagsMetadata, getTagMetadata, getTagSyncLogs, getTagStatistics, clearTagSyncLogs, getSortedWorksByCategory, moveWorkInCategory, deleteCategorySortConfig, getCategorySortConfig } from '../data/storage';
 import { saveMediaToIndexedDB, saveThumbnailToIndexedDB, getMediaFromIndexedDB, mediaStorage } from '../data/mediaStorage';
 import { Category, Work, CategoryType, TechnicalDetail, TagMetadata, TagSyncLog, TagValidationResult } from '../types';
 
@@ -129,6 +129,12 @@ export default function Admin() {
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [searchKeyword, setSearchKeyword] = useState('');
   const [showFilters, setShowFilters] = useState(false);
+
+  // 分类管理界面状态
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [isSortMode, setIsSortMode] = useState(false);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const [dragWorkId, setDragWorkId] = useState<string | null>(null);
 
   // 分类相关的标签和技术细节模板
   const categoryTemplates: Record<string, { tags: string[], technicalDetails: TechnicalDetail[] }> = {
@@ -940,41 +946,227 @@ export default function Admin() {
           <div className="p-6">
             {activeTab === 'categories' ? (
               <>
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-xl font-semibold text-white">作品分类</h2>
-                  <button
-                    onClick={() => setShowAddCategory(true)}
-                    className="flex items-center gap-2 px-4 py-2 bg-gradient-primary text-white rounded-xl font-medium hover:opacity-90 transition-opacity"
-                  >
-                    <Plus className="w-4 h-4" />
-                    添加分类
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {categoriesList.map((category) => (
-                    <div key={category.id} className="bg-dark-200 rounded-xl p-4 flex items-center justify-between">
-                      <div>
-                        <h3 className="text-white font-semibold">{category.name}</h3>
-                        <p className="text-gray-500 text-sm">{category.description}</p>
-                      </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => handleEditCategory(category)}
-                          className="p-2 hover:bg-dark-300 rounded-lg text-gray-400 hover:text-white transition-colors"
-                        >
-                          <Edit3 className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteCategory(category.id)}
-                          className="p-2 hover:bg-red-500/20 rounded-lg text-gray-400 hover:text-red-500 transition-colors"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
+                {selectedCategory ? (
+                  // 分类专属管理界面
+                  <>
+                    <div className="flex items-center gap-4 mb-6">
+                      <button
+                        onClick={() => {
+                          setSelectedCategory(null);
+                          setIsSortMode(false);
+                        }}
+                        className="flex items-center gap-2 px-4 py-2 bg-dark-200 hover:bg-dark-300 rounded-xl text-gray-300 transition-colors"
+                      >
+                        <ArrowUpDown className="w-4 h-4" />
+                        返回分类列表
+                      </button>
+                      <h2 className="text-xl font-semibold text-white">
+                        {categoriesList.find(c => c.id === selectedCategory)?.name} - 作品管理
+                      </h2>
                     </div>
-                  ))}
-                </div>
+
+                    {/* 排序模式切换 */}
+                    <div className="flex items-center justify-between mb-6">
+                      <div className="flex items-center gap-4">
+                        <button
+                          onClick={() => setIsSortMode(!isSortMode)}
+                          className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-colors ${
+                            isSortMode ? 'bg-primary-500/20 text-primary-400 border border-primary-500' : 'bg-dark-200 text-gray-300 hover:bg-dark-300'
+                          }`}
+                        >
+                          <ArrowUpDown className="w-4 h-4" />
+                          {isSortMode ? '退出排序模式' : '进入排序模式'}
+                        </button>
+                        {isSortMode && (
+                          <>
+                            <button
+                              onClick={() => {
+                                deleteCategorySortConfig(selectedCategory!);
+                                setWorksList(getWorks());
+                              }}
+                              className="flex items-center gap-2 px-4 py-2 bg-yellow-500/20 hover:bg-yellow-500/30 rounded-xl text-yellow-400 transition-colors"
+                            >
+                              <RefreshCw className="w-4 h-4" />
+                              恢复默认排序
+                            </button>
+                          </>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => { initNewWorkForm(); setNewWork({ ...newWork, category: selectedCategory as CategoryType }); setShowAddWork(true); }}
+                        className="flex items-center gap-2 px-4 py-2 bg-gradient-primary text-white rounded-xl font-medium hover:opacity-90 transition-opacity"
+                      >
+                        <Plus className="w-4 h-4" />
+                        添加作品
+                      </button>
+                    </div>
+
+                    {/* 分类作品列表 */}
+                    <div className="space-y-3">
+                      {(() => {
+                        const sortedWorks = getSortedWorksByCategory(selectedCategory as CategoryType);
+                        return sortedWorks.length > 0 ? (
+                          sortedWorks.map((work, index) => (
+                            <div
+                              key={work.id}
+                              className={`flex items-center gap-4 p-4 bg-dark-200 rounded-xl transition-all ${
+                                dragOverIndex === index && dragWorkId !== work.id ? 'ring-2 ring-primary-500 bg-dark-300' : ''
+                              }`}
+                              draggable={isSortMode}
+                              onDragStart={() => {
+                                setDragWorkId(work.id);
+                              }}
+                              onDragOver={(e) => {
+                                e.preventDefault();
+                                setDragOverIndex(index);
+                              }}
+                              onDragEnd={() => {
+                                if (dragWorkId && dragOverIndex !== null && dragWorkId !== work.id) {
+                                  const works = getSortedWorksByCategory(selectedCategory as CategoryType);
+                                  const currentIndex = works.findIndex(w => w.id === dragWorkId);
+                                  if (currentIndex !== -1) {
+                                    const direction = dragOverIndex > currentIndex ? 'down' : 'up';
+                                    moveWorkInCategory(selectedCategory!, dragWorkId, direction);
+                                    setWorksList(getWorks());
+                                  }
+                                }
+                                setDragWorkId(null);
+                                setDragOverIndex(null);
+                              }}
+                            >
+                              {/* 排序序号 */}
+                              {isSortMode && (
+                                <div className="flex flex-col gap-1">
+                                  <button
+                                    onClick={() => {
+                                      moveWorkInCategory(selectedCategory!, work.id, 'up');
+                                      setWorksList(getWorks());
+                                    }}
+                                    disabled={index === 0}
+                                    className="p-1 hover:bg-dark-300 rounded disabled:opacity-30 disabled:cursor-not-allowed"
+                                  >
+                                    <ArrowUpDown className="w-4 h-4 text-gray-400 rotate-[-90deg]" />
+                                  </button>
+                                  <span className="text-center text-gray-500 text-sm w-6">#{index + 1}</span>
+                                  <button
+                                    onClick={() => {
+                                      moveWorkInCategory(selectedCategory!, work.id, 'down');
+                                      setWorksList(getWorks());
+                                    }}
+                                    disabled={index === sortedWorks.length - 1}
+                                    className="p-1 hover:bg-dark-300 rounded disabled:opacity-30 disabled:cursor-not-allowed"
+                                  >
+                                    <ArrowUpDown className="w-4 h-4 text-gray-400 rotate-[90deg]" />
+                                  </button>
+                                </div>
+                              )}
+                              
+                              {/* 缩略图 */}
+                              <div className="w-16 h-16 rounded-lg overflow-hidden bg-white flex-shrink-0">
+                                {work.media[0] && (
+                                  <img
+                                    src={work.media[0].thumbnail || work.media[0].url}
+                                    alt={work.title}
+                                    className="w-full h-full object-contain"
+                                  />
+                                )}
+                              </div>
+                              
+                              {/* 作品信息 */}
+                              <div className="flex-1 min-w-0">
+                                <h3 className="text-white font-semibold truncate">{work.title}</h3>
+                                <p className="text-gray-500 text-sm">{work.tags.slice(0, 3).join(', ')}</p>
+                              </div>
+                              
+                              {/* 操作按钮 */}
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => initEditingWorkForm(work)}
+                                  className="p-2 hover:bg-dark-300 rounded-lg text-gray-400 hover:text-white transition-colors"
+                                >
+                                  <Edit3 className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteWork(work.id)}
+                                  className="p-2 hover:bg-red-500/20 rounded-lg text-gray-400 hover:text-red-500 transition-colors"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <p className="text-gray-500 text-center py-8">该分类暂无作品</p>
+                        );
+                      })()}
+                    </div>
+                  </>
+                ) : (
+                  // 分类列表界面
+                  <>
+                    <div className="flex justify-between items-center mb-6">
+                      <h2 className="text-xl font-semibold text-white">作品分类</h2>
+                      <button
+                        onClick={() => setShowAddCategory(true)}
+                        className="flex items-center gap-2 px-4 py-2 bg-gradient-primary text-white rounded-xl font-medium hover:opacity-90 transition-opacity"
+                      >
+                        <Plus className="w-4 h-4" />
+                        添加分类
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {categoriesList.map((category) => {
+                        const workCount = worksList.filter(w => w.category === category.id).length;
+                        const sortConfig = getCategorySortConfig(category.id);
+                        return (
+                          <div
+                            key={category.id}
+                            className="bg-dark-200 rounded-xl p-4 cursor-pointer hover:bg-dark-300 transition-colors group"
+                            onClick={() => setSelectedCategory(category.id)}
+                          >
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <h3 className="text-white font-semibold group-hover:text-primary-400 transition-colors">
+                                  {category.name}
+                                </h3>
+                                <p className="text-gray-500 text-sm">{category.description}</p>
+                                <div className="flex items-center gap-4 mt-2">
+                                  <span className="text-gray-400 text-sm">{workCount} 个作品</span>
+                                  {sortConfig?.useCustomSort && (
+                                    <span className="text-xs px-2 py-0.5 bg-primary-500/20 text-primary-400 rounded-full">
+                                      已自定义排序
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleEditCategory(category);
+                                  }}
+                                  className="p-2 hover:bg-dark-400 rounded-lg text-gray-400 hover:text-white transition-colors"
+                                >
+                                  <Edit3 className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteCategory(category.id);
+                                  }}
+                                  className="p-2 hover:bg-red-500/20 rounded-lg text-gray-400 hover:text-red-500 transition-colors"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
               </>
             ) : activeTab === 'works' ? (
               <>
